@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { GoogleConfiguredGuard } from './google-configured.guard';
 import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
+import { RolesGuard } from '../../shared/guards/roles.guard';
 
 @Module({
   imports: [
@@ -13,7 +14,13 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleConfiguredGuard, GoogleStrategy, JwtStrategy],
+  providers: [
+    AuthService,
+    GoogleConfiguredGuard,
+    GoogleStrategy,
+    JwtStrategy,
+    RolesGuard,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

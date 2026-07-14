@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import type { EnvConfig } from '../../shared/config/env';
 import type { AuthUser } from '../../shared/auth/auth-user';
 import { Roles } from '../../shared/decorators/roles.decorator';
+import { RolesGuard } from '../../shared/guards/roles.guard';
 import { AuthService } from './auth.service';
 import { GoogleConfiguredGuard } from './google-configured.guard';
 
@@ -99,7 +100,7 @@ export class AuthController {
 
   @Get('admin/check')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')
   adminCheck() {
     return { authorized: true };
