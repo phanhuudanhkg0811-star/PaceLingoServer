@@ -10,6 +10,7 @@ import { TestsModule } from './routes/tests/tests.module';
 import { MediaModule } from './routes/media/media.module';
 import { BigIntSerializationInterceptor } from './shared/interceptors/bigint-serialization.interceptor';
 import { DirectionsModule } from './routes/directions/directions.module';
+import { ImportsModule } from './routes/imports/imports.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DirectionsModule } from './routes/directions/directions.module';
     TestsModule,
     MediaModule,
     DirectionsModule,
+    ImportsModule,
   ],
   controllers: [AppController],
   providers: [

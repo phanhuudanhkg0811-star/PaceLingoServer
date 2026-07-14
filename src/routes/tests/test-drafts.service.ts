@@ -128,6 +128,75 @@ export class TestDraftsService {
     return this.findTree(id);
   }
 
+  async appendContent(id: string, content: TestContentInput) {
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        totalQuestions: true,
+        sections: {
+          select: {
+            part: true,
+            order: true,
+            questionGroups: {
+              select: { questions: { select: { number: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!test) throw new NotFoundException('Test draft was not found');
+    if (test.status !== 'DRAFT') {
+      throw new ConflictException('Only draft tests can be edited');
+    }
+
+    const existingParts = new Set(test.sections.map((section) => section.part));
+    const incomingParts = content.sections.map((section) => section.part);
+    const duplicatePart = incomingParts.find(
+      (part) => part && existingParts.has(part),
+    );
+    if (duplicatePart) {
+      throw new ConflictException(
+        `${duplicatePart} already exists in this test`,
+      );
+    }
+    const existingNumbers = new Set(
+      test.sections.flatMap((section) =>
+        section.questionGroups.flatMap((group) =>
+          group.questions.map((question) => question.number),
+        ),
+      ),
+    );
+    const incomingNumbers = content.sections.flatMap((section) =>
+      section.questionGroups.flatMap((group) =>
+        group.questions.map((question) => question.number),
+      ),
+    );
+    const duplicateNumber = incomingNumbers.find((number) =>
+      existingNumbers.has(number),
+    );
+    if (duplicateNumber) {
+      throw new ConflictException(
+        `Question ${duplicateNumber} already exists in this test`,
+      );
+    }
+
+    const nextOrder =
+      Math.max(-1, ...test.sections.map((section) => section.order)) + 1;
+    await this.prisma.test.update({
+      where: { id },
+      data: {
+        totalQuestions: test.totalQuestions + countQuestions(content),
+        sections: {
+          create: content.sections.map((section, index) =>
+            toSectionCreate({ ...section, order: nextOrder + index }),
+          ),
+        },
+      },
+    });
+    return this.findTree(id);
+  }
+
   async validate(id: string) {
     const test = await this.findTree(id);
     return validateTestDraft(test);
