@@ -71,6 +71,38 @@ describe('validateTestDraft', () => {
       ).toBe(true);
     }
   });
+
+  it('uses DEFAULT directions when imported content omits direction fields', () => {
+    const result = testContentSchema.safeParse({
+      sections: [
+        {
+          title: 'Part 1',
+          part: 'PART_1',
+          kind: 'LISTENING',
+          order: 0,
+          questionGroups: [],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.sections[0].directionMode).toBe('DEFAULT');
+    }
+  });
+
+  it('does not allow a full mock test to skip Directions', () => {
+    const draft = makeFullTest();
+    draft.sections[0].directionMode = 'NONE';
+
+    const result = validateTestDraft(draft);
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'MISSING_MOCK_DIRECTION' }),
+      ]),
+    );
+  });
 });
 
 function makeFullTest(): DraftTree {

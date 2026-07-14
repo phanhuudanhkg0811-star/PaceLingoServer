@@ -9,9 +9,17 @@ import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { TestsModule } from './routes/tests/tests.module';
 import { MediaModule } from './routes/media/media.module';
 import { BigIntSerializationInterceptor } from './shared/interceptors/bigint-serialization.interceptor';
+import { DirectionsModule } from './routes/directions/directions.module';
 
 @Module({
-  imports: [EnvModule, PrismaModule, AuthModule, TestsModule, MediaModule],
+  imports: [
+    EnvModule,
+    PrismaModule,
+    AuthModule,
+    TestsModule,
+    MediaModule,
+    DirectionsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

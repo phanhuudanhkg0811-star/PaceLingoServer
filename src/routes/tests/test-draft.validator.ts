@@ -19,6 +19,8 @@ export interface DraftTree {
   sections: Array<{
     kind: 'LISTENING' | 'READING';
     part: ToeicPart | null;
+    directionMode?: 'DEFAULT' | 'CUSTOM' | 'NONE';
+    directionTemplateId?: string | null;
     questionGroups: Array<{
       type: GroupType;
       transcriptHtml: string | null;
@@ -88,6 +90,22 @@ export function validateTestDraft(test: DraftTree): DraftValidationResult {
 
   for (const [sectionIndex, section] of test.sections.entries()) {
     const sectionPath = `sections.${sectionIndex}`;
+    if (test.type === 'FULL_TEST' && section.directionMode === 'NONE') {
+      add(
+        errors,
+        'MISSING_MOCK_DIRECTION',
+        `${sectionPath}.directionMode`,
+        'Full mock tests cannot skip Directions.',
+      );
+    }
+    if (section.directionMode === 'CUSTOM' && !section.directionTemplateId) {
+      add(
+        errors,
+        'MISSING_CUSTOM_DIRECTION',
+        `${sectionPath}.directionTemplateId`,
+        'Custom Direction mode requires a template.',
+      );
+    }
     if (!section.part) {
       add(
         errors,

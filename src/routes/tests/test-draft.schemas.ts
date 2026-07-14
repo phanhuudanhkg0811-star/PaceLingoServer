@@ -62,16 +62,33 @@ const groupSchema = z.object({
   questions: z.array(questionSchema).default([]),
 });
 
-const sectionSchema = z.object({
-  title: z.string().trim().min(1).max(250),
-  kind: z.enum(sectionKinds),
-  part: z.enum(toeicParts).optional(),
-  order: z.number().int().min(0),
-  durationMinutes: z.number().int().positive().optional(),
-  directionMode: z.enum(directionModes).default('DEFAULT'),
-  directionTemplateId: z.string().trim().min(1).optional(),
-  questionGroups: z.array(groupSchema).default([]),
-});
+const sectionSchema = z
+  .object({
+    title: z.string().trim().min(1).max(250),
+    kind: z.enum(sectionKinds),
+    part: z.enum(toeicParts).optional(),
+    order: z.number().int().min(0),
+    durationMinutes: z.number().int().positive().optional(),
+    directionMode: z.enum(directionModes).default('DEFAULT'),
+    directionTemplateId: z.string().trim().min(1).optional(),
+    questionGroups: z.array(groupSchema).default([]),
+  })
+  .superRefine((section, context) => {
+    if (section.directionMode === 'CUSTOM' && !section.directionTemplateId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['directionTemplateId'],
+        message: 'CUSTOM direction mode requires directionTemplateId',
+      });
+    }
+    if (section.directionMode !== 'CUSTOM' && section.directionTemplateId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['directionTemplateId'],
+        message: 'Only CUSTOM direction mode may select a template',
+      });
+    }
+  });
 
 export const testContentSchema = z
   .object({
