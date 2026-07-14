@@ -45,4 +45,8 @@ describe('AppController (e2e)', () => {
   it('/admin/imports (GET) requires authentication', () => {
     return request(app.getHttpServer()).get('/admin/imports').expect(401);
   });
+
+  it('/tests (GET) requires authentication', () => {
+    return request(app.getHttpServer()).get('/tests').expect(401);
+  });
 });

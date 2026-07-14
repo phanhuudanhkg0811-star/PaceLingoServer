@@ -103,7 +103,64 @@ describe('validateTestDraft', () => {
       ]),
     );
   });
+
+  it('allows a flexible mini test containing only packed Part 5 questions', () => {
+    const draft: DraftTree = {
+      type: 'MINI_TEST',
+      totalQuestions: 2,
+      durationMinutes: 10,
+      fullListeningAudioId: null,
+      sections: [
+        {
+          part: 'PART_5',
+          kind: 'READING',
+          directionMode: 'DEFAULT',
+          questionGroups: [
+            {
+              type: 'INCOMPLETE_SENTENCE',
+              transcriptHtml: null,
+              stimuli: [],
+              questions: [makeReadingQuestion(101), makeReadingQuestion(102)],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = validateTestDraft(draft);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'PACKED_PART_5_GROUP' }),
+      ]),
+    );
+  });
+
+  it('still rejects an empty mini test', () => {
+    const result = validateTestDraft({
+      type: 'MINI_TEST',
+      totalQuestions: 0,
+      durationMinutes: 10,
+      fullListeningAudioId: null,
+      sections: [],
+    });
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'EMPTY_TEST' })]),
+    );
+  });
 });
+
+function makeReadingQuestion(number: number) {
+  return {
+    number,
+    options: Array.from({ length: 4 }, (_, index) => ({
+      isCorrect: index === 0,
+    })),
+  };
+}
 
 function makeFullTest(): DraftTree {
   let nextNumber = 1;

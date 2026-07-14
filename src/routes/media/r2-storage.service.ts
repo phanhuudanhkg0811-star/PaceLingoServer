@@ -71,7 +71,7 @@ export class R2StorageService {
     return Boolean(this.client && this.bucket && this.publicUrl);
   }
 
-  private publicObjectUrl(storageKey: string) {
+  objectUrl(storageKey: string) {
     if (!this.publicUrl) {
       throw new ServiceUnavailableException('R2_PUBLIC_URL is not configured');
     }
@@ -79,6 +79,10 @@ export class R2StorageService {
       .split('/')
       .map((part) => encodeURIComponent(part))
       .join('/')}`;
+  }
+
+  private publicObjectUrl(storageKey: string) {
+    return this.objectUrl(storageKey);
   }
 
   private requireConfiguration() {

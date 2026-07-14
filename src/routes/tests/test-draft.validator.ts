@@ -142,11 +142,24 @@ export function validateTestDraft(test: DraftTree): DraftValidationResult {
 
       validateGroupMedia(section.part, group, groupPath, errors);
       validateGroupSize(
+        test.type,
         section.part,
         group.questions.length,
         groupPath,
         errors,
       );
+      if (
+        test.type !== 'FULL_TEST' &&
+        section.part === 'PART_5' &&
+        group.questions.length > 1
+      ) {
+        add(
+          warnings,
+          'PACKED_PART_5_GROUP',
+          `${groupPath}.questions`,
+          'Mini/practice tests may publish this group; candidate pages will split Part 5 into one question per page.',
+        );
+      }
 
       if (
         (section.part === 'PART_3' || section.part === 'PART_4') &&
@@ -190,6 +203,14 @@ export function validateTestDraft(test: DraftTree): DraftValidationResult {
   }
 
   const totalQuestions = questionNumbers.length;
+  if (totalQuestions === 0) {
+    add(
+      errors,
+      'EMPTY_TEST',
+      'sections',
+      'Test must contain at least one question.',
+    );
+  }
   if (test.totalQuestions !== totalQuestions) {
     add(
       errors,
@@ -346,6 +367,7 @@ function validateGroupMedia(
 }
 
 function validateGroupSize(
+  testType: DraftTree['type'],
   part: ToeicPart,
   count: number,
   path: string,
@@ -362,7 +384,9 @@ function validateGroupSize(
     );
   }
   if (
-    (part === 'PART_1' || part === 'PART_2' || part === 'PART_5') &&
+    (part === 'PART_1' ||
+      part === 'PART_2' ||
+      (part === 'PART_5' && testType === 'FULL_TEST')) &&
     count !== 1
   ) {
     add(
