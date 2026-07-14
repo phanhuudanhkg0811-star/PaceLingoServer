@@ -17,8 +17,15 @@ describe('buildSnapshots', () => {
     expect(serialized).not.toContain('transcriptHtml');
     expect(serialized).not.toContain('Correct because');
     expect(snapshots.answerKey.questions).toEqual([
-      { questionId: 'question-1', correctOptionId: 'option-a' },
+      {
+        questionId: 'question-1',
+        number: 1,
+        kind: 'READING',
+        part: 'PART_5',
+        correctOptionId: 'option-a',
+      },
     ]);
+    expect(snapshots.answerKey.scoreConversion).toBeNull();
   });
 
   it('encrypts private snapshots before public-bucket storage', () => {
@@ -39,6 +46,7 @@ function makeTestTree() {
     status: 'DRAFT',
     durationMinutes: 10,
     totalQuestions: 1,
+    scoreConversionProfile: null,
     fullListeningAudio: null,
     timelineEvents: [],
     sections: [

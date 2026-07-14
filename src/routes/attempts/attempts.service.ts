@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
+import type { Prisma } from '../../../generated/prisma/client';
 import type { EnvConfig } from '../../shared/config/env';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { R2StorageService } from '../media/r2-storage.service';
@@ -14,11 +15,23 @@ import type {
   AttemptBatchInput,
   AttemptProgressInput,
 } from './attempt.schemas';
+import {
+  buildAttemptResult,
+  type ScoreConversionSnapshot,
+  type ToeicPart,
+} from './attempt-result';
 
 interface AnswerKeyPayload {
   schemaVersion: number;
   testId: string;
-  questions: Array<{ questionId: string; correctOptionId: string | null }>;
+  scoreConversion?: ScoreConversionSnapshot | null;
+  questions: Array<{
+    questionId: string;
+    correctOptionId: string | null;
+    number?: number;
+    kind?: 'LISTENING' | 'READING';
+    part?: ToeicPart | null;
+  }>;
 }
 
 @Injectable()
@@ -281,6 +294,10 @@ export class AttemptsService {
           select: {
             scoreConversionProfile: {
               select: {
+                name: true,
+                source: true,
+                version: true,
+                isOfficial: true,
                 listeningMappingJson: true,
                 readingMappingJson: true,
               },
@@ -317,7 +334,7 @@ export class AttemptsService {
     }
 
     const questionIds = answerKey.questions.map((item) => item.questionId);
-    const [savedAnswers, questionKinds] = await Promise.all([
+    const [savedAnswers, questionMetadata, savedTimings] = await Promise.all([
       this.prisma.userAnswer.findMany({
         where: { attemptId: id, questionId: { in: questionIds } },
         select: { questionId: true, selectedOptionId: true },
@@ -326,56 +343,78 @@ export class AttemptsService {
         where: { id: { in: questionIds } },
         select: {
           id: true,
-          group: { select: { section: { select: { kind: true } } } },
+          number: true,
+          group: {
+            select: { section: { select: { kind: true, part: true } } },
+          },
+        },
+      }),
+      this.prisma.questionTiming.findMany({
+        where: { attemptId: id, questionId: { in: questionIds } },
+        select: { questionId: true, activeTimeMs: true, visitCount: true },
+      }),
+    ]);
+    const metadataByQuestion = new Map(
+      questionMetadata.map((item) => [item.id, item]),
+    );
+    const questions = answerKey.questions.map((key) => {
+      const metadata = metadataByQuestion.get(key.questionId);
+      const kind = key.kind ?? metadata?.group.section.kind;
+      if (!kind) {
+        throw new ConflictException('Question grading metadata is missing');
+      }
+      return {
+        questionId: key.questionId,
+        correctOptionId: key.correctOptionId,
+        number: key.number ?? metadata?.number ?? 0,
+        kind,
+        part: key.part ?? metadata?.group.section.part ?? null,
+      };
+    });
+    const conversion =
+      answerKey.scoreConversion === undefined
+        ? attempt.test.scoreConversionProfile
+        : answerKey.scoreConversion;
+    const finishedAt = new Date();
+    const result = buildAttemptResult({
+      questions,
+      answers: savedAnswers,
+      timings: savedTimings,
+      durationMs:
+        Math.min(finishedAt.getTime(), attempt.expiresAt.getTime()) -
+        attempt.startedAt.getTime(),
+      conversion,
+    });
+    const correctPairs = questions
+      .filter((question) => question.correctOptionId !== null)
+      .map((question) => ({
+        questionId: question.questionId,
+        selectedOptionId: question.correctOptionId!,
+      }));
+
+    await this.prisma.$transaction([
+      this.prisma.userAnswer.updateMany({
+        where: { attemptId: id, selectedOptionId: { not: null } },
+        data: { isCorrect: false },
+      }),
+      this.prisma.userAnswer.updateMany({
+        where: { attemptId: id, OR: correctPairs },
+        data: { isCorrect: true },
+      }),
+      this.prisma.attempt.updateMany({
+        where: { id, userId, status: 'IN_PROGRESS' },
+        data: {
+          status: automatic ? 'AUTO_SUBMITTED' : 'SUBMITTED',
+          submittedAt: finishedAt,
+          listeningCorrect: result.score.listening.correct,
+          readingCorrect: result.score.reading.correct,
+          listeningScore: result.score.listening.scaled,
+          readingScore: result.score.reading.scaled,
+          totalScore: result.score.totalScaled,
+          resultJson: result as unknown as Prisma.InputJsonValue,
         },
       }),
     ]);
-    const selectedByQuestion = new Map(
-      savedAnswers.map((item) => [item.questionId, item.selectedOptionId]),
-    );
-    const kindByQuestion = new Map(
-      questionKinds.map((item) => [item.id, item.group.section.kind]),
-    );
-    let listeningCorrect = 0;
-    let readingCorrect = 0;
-    for (const key of answerKey.questions) {
-      if (
-        key.correctOptionId &&
-        selectedByQuestion.get(key.questionId) === key.correctOptionId
-      ) {
-        if (kindByQuestion.get(key.questionId) === 'LISTENING') {
-          listeningCorrect += 1;
-        } else {
-          readingCorrect += 1;
-        }
-      }
-    }
-    const profile = attempt.test.scoreConversionProfile;
-    const listeningScore = profile
-      ? mappedScore(profile.listeningMappingJson, listeningCorrect)
-      : null;
-    const readingScore = profile
-      ? mappedScore(profile.readingMappingJson, readingCorrect)
-      : null;
-    const availableScores = [listeningScore, readingScore].filter(
-      (value): value is number => value !== null,
-    );
-
-    await this.prisma.attempt.updateMany({
-      where: { id, userId, status: 'IN_PROGRESS' },
-      data: {
-        status: automatic ? 'AUTO_SUBMITTED' : 'SUBMITTED',
-        submittedAt: new Date(),
-        listeningCorrect,
-        readingCorrect,
-        listeningScore,
-        readingScore,
-        totalScore:
-          availableScores.length > 0
-            ? availableScores.reduce((sum, value) => sum + value, 0)
-            : null,
-      },
-    });
     return this.attemptResponse(id, userId);
   }
 
@@ -457,12 +496,14 @@ export class AttemptsService {
         listeningScore: true,
         readingScore: true,
         totalScore: true,
+        resultJson: true,
         answers: {
           select: {
             questionId: true,
             selectedOptionId: true,
             isFlagged: true,
             answeredAt: true,
+            isCorrect: true,
             clientSequence: true,
           },
         },
@@ -479,18 +520,11 @@ export class AttemptsService {
       },
     });
     if (!attempt) throw new NotFoundException('Attempt was not found');
-    return { ...attempt, serverNow: new Date().toISOString() };
+    const { resultJson, ...response } = attempt;
+    return {
+      ...response,
+      result: resultJson,
+      serverNow: new Date().toISOString(),
+    };
   }
-}
-
-function mappedScore(mapping: unknown, correct: number) {
-  if (Array.isArray(mapping)) {
-    const value: unknown = (mapping as unknown[])[correct];
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  }
-  if (mapping && typeof mapping === 'object') {
-    const value = (mapping as Record<string, unknown>)[String(correct)];
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  }
-  return null;
 }

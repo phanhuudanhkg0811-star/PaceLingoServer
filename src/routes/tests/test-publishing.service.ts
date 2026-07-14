@@ -210,10 +210,24 @@ export function buildSnapshots(test: TestTree, defaults: DefaultDirection[]) {
   const answerKey = {
     schemaVersion: 1,
     testId: test.id,
+    scoreConversion: test.scoreConversionProfile
+      ? {
+          name: test.scoreConversionProfile.name,
+          source: test.scoreConversionProfile.source,
+          version: test.scoreConversionProfile.version,
+          isOfficial: test.scoreConversionProfile.isOfficial,
+          listeningMappingJson:
+            test.scoreConversionProfile.listeningMappingJson,
+          readingMappingJson: test.scoreConversionProfile.readingMappingJson,
+        }
+      : null,
     questions: test.sections.flatMap((section) =>
       section.questionGroups.flatMap((group) =>
         group.questions.map((question) => ({
           questionId: question.id,
+          number: question.number,
+          kind: section.kind,
+          part: section.part,
           correctOptionId:
             question.options.find((option) => option.isCorrect)?.id ?? null,
         })),
