@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -65,6 +66,17 @@ export class R2StorageService {
     await client.send(
       new DeleteObjectCommand({ Bucket: bucket, Key: storageKey }),
     );
+  }
+
+  async downloadBytes(storageKey: string) {
+    const { client, bucket } = this.requireConfiguration();
+    const result = await client.send(
+      new GetObjectCommand({ Bucket: bucket, Key: storageKey }),
+    );
+    if (!result.Body) {
+      throw new ServiceUnavailableException('Stored object has no body');
+    }
+    return result.Body.transformToByteArray();
   }
 
   isConfigured() {

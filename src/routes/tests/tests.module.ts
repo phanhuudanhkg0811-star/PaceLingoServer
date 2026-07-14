@@ -7,14 +7,21 @@ import { TestPublishingService } from './test-publishing.service';
 import { JwtModule } from '@nestjs/jwt';
 import { CandidateTestsController } from './candidate-tests.controller';
 import { CandidateRuntimeService } from './candidate-runtime.service';
+import { AttemptsController } from '../attempts/attempts.controller';
+import { AttemptsService } from '../attempts/attempts.service';
 
 @Module({
   imports: [MediaModule, JwtModule.register({})],
-  controllers: [TestDraftsController, CandidateTestsController],
+  controllers: [
+    TestDraftsController,
+    CandidateTestsController,
+    AttemptsController,
+  ],
   providers: [
     TestDraftsService,
     TestPublishingService,
     CandidateRuntimeService,
+    AttemptsService,
     RolesGuard,
   ],
   exports: [TestDraftsService],

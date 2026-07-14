@@ -17,6 +17,7 @@ import {
   type StartCandidateRuntimeInput,
 } from './candidate-runtime.schema';
 import { CandidateRuntimeService } from './candidate-runtime.service';
+import { AttemptsService } from '../attempts/attempts.service';
 
 type CandidateRequest = Request & { user: AuthUser };
 
@@ -25,7 +26,10 @@ type CandidateRequest = Request & { user: AuthUser };
 @UseGuards(AuthGuard('jwt'))
 @Controller('tests')
 export class CandidateTestsController {
-  constructor(private readonly runtime: CandidateRuntimeService) {}
+  constructor(
+    private readonly runtime: CandidateRuntimeService,
+    private readonly attempts: AttemptsService,
+  ) {}
 
   @Get()
   listPublished() {
@@ -45,5 +49,10 @@ export class CandidateTestsController {
     @Req() request: CandidateRequest,
   ) {
     return this.runtime.startOrResume(id, request.user.id, input.runtimeToken);
+  }
+
+  @Post(':id/attempts')
+  startAttempt(@Param('id') id: string, @Req() request: CandidateRequest) {
+    return this.attempts.startOrResume(id, request.user.id);
   }
 }

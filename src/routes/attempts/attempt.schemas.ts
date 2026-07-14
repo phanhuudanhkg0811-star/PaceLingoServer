@@ -1,0 +1,31 @@
+import { z } from 'zod';
+
+const answerSchema = z.object({
+  questionId: z.string().min(1),
+  optionId: z.string().min(1).nullable(),
+  isFlagged: z.boolean(),
+  clientSequence: z.number().int().nonnegative(),
+  answeredAt: z.iso.datetime().nullable(),
+});
+
+const timingSchema = z.object({
+  questionId: z.string().min(1),
+  activeTimeMs: z.number().int().nonnegative().max(86_400_000),
+  visitCount: z.number().int().nonnegative().max(100_000),
+  firstViewedAt: z.iso.datetime().nullable(),
+  lastViewedAt: z.iso.datetime().nullable(),
+  clientSequence: z.number().int().nonnegative(),
+});
+
+export const attemptBatchSchema = z.object({
+  answers: z.array(answerSchema).max(100).default([]),
+  timings: z.array(timingSchema).max(100).default([]),
+});
+
+export const attemptProgressSchema = z.object({
+  currentSection: z.enum(['LISTENING', 'READING']),
+  currentQuestionId: z.string().min(1).nullable(),
+});
+
+export type AttemptBatchInput = z.infer<typeof attemptBatchSchema>;
+export type AttemptProgressInput = z.infer<typeof attemptProgressSchema>;

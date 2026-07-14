@@ -103,6 +103,7 @@ enum AttemptStatus {
   IN_PROGRESS
   SUBMITTED
   AUTO_SUBMITTED
+  EXPIRED
   ABANDONED
 }
 
@@ -209,6 +210,7 @@ model Test {
   sections                  TestSection[]
   timelineEvents            AudioTimelineEvent[]
   importDrafts              ImportDraft[]
+  attempts                  Attempt[]
 
   @@index([status, type])
   @@index([createdById])
@@ -431,28 +433,35 @@ model QuestionAudioSegment {
 }
 
 model Attempt {
-  id               String            @id @default(cuid())
-  userId           String
-  testVersionId    String
-  status           AttemptStatus     @default(IN_PROGRESS)
-  startedAt        DateTime          @default(now())
-  expiresAt        DateTime
-  submittedAt      DateTime?
-  listeningCorrect Int?
-  readingCorrect   Int?
-  listeningScore   Int?
-  readingScore     Int?
-  totalScore       Int?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  testVersion      TestVersion       @relation(fields: [testVersionId], references: [id], onDelete: Restrict)
-  answers          UserAnswer[]
-  timings          QuestionTiming[]
-  practiceSessions PracticeSession[]
+  id                String            @id @default(cuid())
+  userId            String
+  testId            String
+  testVersionId     String
+  status            AttemptStatus     @default(IN_PROGRESS)
+  startedAt         DateTime          @default(now())
+  listeningEndsAt   DateTime?
+  readingEndsAt     DateTime?
+  expiresAt         DateTime
+  submittedAt       DateTime?
+  currentSection    SectionKind?
+  currentQuestionId String?
+  listeningCorrect  Int?
+  readingCorrect    Int?
+  listeningScore    Int?
+  readingScore      Int?
+  totalScore        Int?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test              Test              @relation(fields: [testId], references: [id], onDelete: Restrict)
+  testVersion       TestVersion       @relation(fields: [testVersionId], references: [id], onDelete: Restrict)
+  answers           UserAnswer[]
+  timings           QuestionTiming[]
+  practiceSessions  PracticeSession[]
 
   @@index([userId, status])
   @@index([userId, startedAt])
+  @@index([testId, status])
   @@index([testVersionId])
 }
 
@@ -462,6 +471,7 @@ model UserAnswer {
   questionId       String
   selectedOptionId String?
   isFlagged        Boolean         @default(false)
+  clientSequence   Int             @default(0)
   answeredAt       DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -475,17 +485,18 @@ model UserAnswer {
 }
 
 model QuestionTiming {
-  id            String    @id @default(cuid())
-  attemptId     String
-  questionId    String
-  activeTimeMs  Int       @default(0)
-  visitCount    Int       @default(0)
-  firstViewedAt DateTime?
-  lastViewedAt  DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  attempt       Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question      Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  id             String    @id @default(cuid())
+  attemptId      String
+  questionId     String
+  activeTimeMs   Int       @default(0)
+  visitCount     Int       @default(0)
+  clientSequence Int       @default(0)
+  firstViewedAt  DateTime?
+  lastViewedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  attempt        Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
   @@unique([attemptId, questionId])
   @@index([questionId])
