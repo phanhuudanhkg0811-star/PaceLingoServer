@@ -9,6 +9,9 @@ import { CandidateTestsController } from './candidate-tests.controller';
 import { CandidateRuntimeService } from './candidate-runtime.service';
 import { AttemptsController } from '../attempts/attempts.controller';
 import { AttemptsService } from '../attempts/attempts.service';
+import { AttemptReviewService } from '../attempts/attempt-review.service';
+import { PracticeSessionsController } from '../attempts/practice-sessions.controller';
+import { PracticeSessionsService } from '../attempts/practice-sessions.service';
 
 @Module({
   imports: [MediaModule, JwtModule.register({})],
@@ -16,12 +19,15 @@ import { AttemptsService } from '../attempts/attempts.service';
     TestDraftsController,
     CandidateTestsController,
     AttemptsController,
+    PracticeSessionsController,
   ],
   providers: [
     TestDraftsService,
     TestPublishingService,
     CandidateRuntimeService,
     AttemptsService,
+    AttemptReviewService,
+    PracticeSessionsService,
     RolesGuard,
   ],
   exports: [TestDraftsService],

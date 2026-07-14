@@ -49,4 +49,14 @@ describe('AppController (e2e)', () => {
   it('/tests (GET) requires authentication', () => {
     return request(app.getHttpServer()).get('/tests').expect(401);
   });
+
+  it('/attempts (GET) requires authentication', () => {
+    return request(app.getHttpServer()).get('/attempts').expect(401);
+  });
+
+  it('/practice-sessions/:id (GET) requires authentication', () => {
+    return request(app.getHttpServer())
+      .get('/practice-sessions/not-owned')
+      .expect(401);
+  });
 });
