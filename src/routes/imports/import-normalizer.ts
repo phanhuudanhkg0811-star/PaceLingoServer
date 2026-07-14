@@ -167,6 +167,10 @@ function extractSections(
             title: root.groupTitle,
             transcriptHtml: root.transcriptHtml,
             stimuli: root.stimuli,
+            passageHtml: root.passageHtml,
+            passage: root.passage,
+            passages: root.passages,
+            documents: root.documents,
             order: 0,
             questions: root.questions,
           },
@@ -288,9 +292,7 @@ function normalizeGroups(
         title: text(group.title),
         transcriptHtml: text(group.transcriptHtml ?? group.transcript),
         order: integer(group.order) ?? groupIndex,
-        stimuli: normalizeStimuli(
-          Array.isArray(group.stimuli) ? group.stimuli : [],
-        ),
+        stimuli: normalizeStimuli(extractGroupStimuli(group)),
         questions,
       },
     ];
@@ -400,6 +402,34 @@ function normalizeStimuli(rawStimuli: unknown[]) {
       },
     ];
   });
+}
+
+/**
+ * `stimuli` is the canonical field. The aliases below keep common AI output
+ * from silently dropping Part 6/7 passages during normalization.
+ */
+function extractGroupStimuli(group: Record<string, unknown>): unknown[] {
+  if (Array.isArray(group.stimuli)) return group.stimuli;
+
+  const collection: unknown[] | undefined = Array.isArray(group.documents)
+    ? (group.documents as unknown[])
+    : Array.isArray(group.passages)
+      ? (group.passages as unknown[])
+      : undefined;
+  if (collection) {
+    return collection.map((document, index) =>
+      typeof document === 'string'
+        ? { type: 'HTML', contentHtml: document, order: index }
+        : document,
+    );
+  }
+
+  const passageHtml = text(
+    group.passageHtml ?? group.passage ?? group.documentHtml,
+  );
+  return passageHtml
+    ? [{ type: 'HTML', contentHtml: passageHtml, order: 0 }]
+    : [];
 }
 
 function result(

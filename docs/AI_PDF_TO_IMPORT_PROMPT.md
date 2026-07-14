@@ -1,6 +1,9 @@
 # AI prompt — TOEIC PDF to PaceLingo JSON
 
-Đưa tài liệu này, `IMPORT_SCHEMA_V1.md`, file PDF đề và answer key cho AI. Nên
+Đưa tài liệu này, `IMPORT_SCHEMA_V1.md`,
+[`AI_PASSAGE_AND_MEDIA_GUIDE.md`](./AI_PASSAGE_AND_MEDIA_GUIDE.md), file PDF đề
+và answer key cho AI. Tài liệu passage/media là hợp đồng chi tiết bắt buộc cho
+việc dựng email, table, passage HTML và đánh dấu ảnh cần admin chèn. Nên
 xử lý từng Part hoặc từng nhóm passage thay vì yêu cầu xuất cả 200 câu một lần.
 
 ## Prompt sẵn để sao chép
@@ -62,7 +65,7 @@ Use an unresolved IMAGE stimulus when:
 IMAGE placeholder format:
 {
   "type": "IMAGE",
-  "altText": "[MEDIA_REQUIRED] PDF page <page>: crop <exact region/content>; preserve <important visual details>; used by questions <numbers>.",
+  "altText": "[MEDIA_REQUIRED] type=<TYPE>; page=<PAGE>; questions=<NUMBERS>; crop=<REGION>; preserve=<DETAILS>; reason=<WHY_HTML_IS_UNSAFE>",
   "order": <zero-based stimulus order>
 }
 
@@ -135,7 +138,7 @@ Quảng cáo nhà hàng có logo, coupon và bố cục hai cột:
 ```json
 {
   "type": "IMAGE",
-  "altText": "[MEDIA_REQUIRED] PDF page 18: crop the full restaurant advertisement; preserve logo, coupon code, prices, and two-column layout; used by questions 153-154.",
+  "altText": "[MEDIA_REQUIRED] type=ADVERTISEMENT; page=18; questions=153-154; crop=full restaurant advertisement; preserve=logo, coupon code, prices and two-column layout; reason=visual layout affects interpretation",
   "order": 0
 }
 ```

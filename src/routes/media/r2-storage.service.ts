@@ -46,6 +46,20 @@ export class R2StorageService {
     return this.publicObjectUrl(storageKey);
   }
 
+  async uploadBytes(body: Uint8Array, storageKey: string, contentType: string) {
+    const { client, bucket } = this.requireConfiguration();
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: storageKey,
+        Body: body,
+        ContentType: contentType,
+        CacheControl: 'public, max-age=31536000, immutable',
+      }),
+    );
+    return this.publicObjectUrl(storageKey);
+  }
+
   async delete(storageKey: string) {
     const { client, bucket } = this.requireConfiguration();
     await client.send(

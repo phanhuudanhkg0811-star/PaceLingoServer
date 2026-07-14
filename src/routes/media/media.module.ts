@@ -13,6 +13,6 @@ import { R2StorageService } from './r2-storage.service';
     R2StorageService,
     RolesGuard,
   ],
-  exports: [MediaService],
+  exports: [MediaService, R2StorageService],
 })
 export class MediaModule {}

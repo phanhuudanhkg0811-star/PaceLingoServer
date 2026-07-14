@@ -113,6 +113,97 @@ describe('normalizeImport', () => {
       expect.objectContaining({ sections: 1, groups: 1, questions: 1 }),
     );
   });
+
+  it('preserves common Part 6 passageHtml output as an HTML stimulus', () => {
+    const result = normalizeImport(
+      {
+        schemaVersion: 1,
+        test: { title: 'Part 6', type: 'PART_PRACTICE' },
+        sections: [
+          {
+            part: 6,
+            groups: [
+              {
+                passageHtml: '<article><h2>Memo</h2><p>Passage</p></article>',
+                questions: [
+                  {
+                    number: 131,
+                    prompt: 'Question',
+                    options: ['A', 'B', 'C', 'D'],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      false,
+    );
+
+    const normalized = result.normalized as {
+      content: {
+        sections: Array<{
+          questionGroups: Array<{
+            stimuli: Array<{ type: string; contentHtml: string }>;
+          }>;
+        }>;
+      };
+    };
+    expect(result.validation.valid).toBe(true);
+    const stimulus =
+      normalized.content.sections[0].questionGroups[0].stimuli[0];
+    expect(stimulus.type).toBe('HTML');
+    expect(stimulus.contentHtml).toContain('Memo');
+  });
+
+  it('preserves multiple Part 7 documents as ordered stimuli', () => {
+    const result = normalizeImport(
+      {
+        schemaVersion: 1,
+        test: { title: 'Part 7', type: 'PART_PRACTICE' },
+        sections: [
+          {
+            part: 7,
+            groups: [
+              {
+                type: 'MULTIPLE_PASSAGE',
+                documents: ['<p>First document</p>', '<p>Second document</p>'],
+                questions: [
+                  {
+                    number: 176,
+                    prompt: 'Question',
+                    options: ['A', 'B', 'C', 'D'],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      false,
+    );
+
+    const normalized = result.normalized as {
+      content: {
+        sections: Array<{
+          questionGroups: Array<{
+            stimuli: Array<{ contentHtml: string; order: number }>;
+          }>;
+        }>;
+      };
+    };
+    expect(result.validation.valid).toBe(true);
+    expect(normalized.content.sections[0].questionGroups[0].stimuli).toEqual([
+      expect.objectContaining({
+        contentHtml: '<p>First document</p>',
+        order: 0,
+      }),
+      expect.objectContaining({
+        contentHtml: '<p>Second document</p>',
+        order: 1,
+      }),
+    ]);
+  });
 });
 
 function makeSource(questionOverride: Record<string, unknown>) {

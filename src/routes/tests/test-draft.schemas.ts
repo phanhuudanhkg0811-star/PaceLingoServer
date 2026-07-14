@@ -182,6 +182,7 @@ export const createTestDraftSchema = testMetadataSchema.extend({
 });
 
 export const updateTestDraftSchema = testMetadataSchema.partial().extend({
+  description: z.union([z.string().trim().max(5000), z.null()]).optional(),
   fullListeningAudioId: z
     .union([z.string().trim().min(1), z.null()])
     .optional(),

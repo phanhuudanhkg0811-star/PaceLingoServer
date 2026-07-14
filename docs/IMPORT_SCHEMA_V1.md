@@ -61,6 +61,9 @@ published test.
 - `prompt` may replace `promptHtml`.
 - `explanation` may replace `explanationHtml`.
 - `transcript` may replace `transcriptHtml`.
+- `passageHtml`, `passage`, `passages`, or `documents` may replace `stimuli`
+  for common AI output. String values are normalized into ordered HTML stimuli.
+  `stimuli` remains the recommended canonical field.
 - Options may be plain strings; labels and order are generated automatically.
 - `correctOption` marks the matching option label as correct.
 - Part may be `5`, `PART5`, or `PART_5`.
@@ -87,7 +90,7 @@ HTML. It should create an unresolved `IMAGE` stimulus without `mediaAssetId`:
 ```json
 {
   "type": "IMAGE",
-  "altText": "[MEDIA_REQUIRED] PDF page 18: crop the restaurant advertisement for questions 153-154; preserve prices, logo, and two-column layout.",
+  "altText": "[MEDIA_REQUIRED] type=ADVERTISEMENT; page=18; questions=153-154; crop=full restaurant advertisement; preserve=prices, logo and two-column layout; reason=visual layout affects interpretation",
   "order": 0
 }
 ```
@@ -135,4 +138,6 @@ A downloadable example is available in the client at
 `/samples/toeic-import-v1.json`.
 
 For PDF/OCR conversion, use the ready-to-copy prompt in
-[`AI_PDF_TO_IMPORT_PROMPT.md`](./AI_PDF_TO_IMPORT_PROMPT.md).
+[`AI_PDF_TO_IMPORT_PROMPT.md`](./AI_PDF_TO_IMPORT_PROMPT.md) and the strict
+passage/media rules in
+[`AI_PASSAGE_AND_MEDIA_GUIDE.md`](./AI_PASSAGE_AND_MEDIA_GUIDE.md).

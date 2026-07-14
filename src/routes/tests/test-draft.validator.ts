@@ -289,6 +289,11 @@ function validateGroupMedia(
       (stimulus.type === 'HTML' && stimulus.contentHtml) ||
       (stimulus.type === 'IMAGE' && stimulus.mediaAssetId),
   );
+  const passageCount = group.stimuli.filter(
+    (stimulus) =>
+      (stimulus.type === 'HTML' && stimulus.contentHtml) ||
+      (stimulus.type === 'IMAGE' && stimulus.mediaAssetId),
+  ).length;
 
   if (isListeningPart(part) && !hasAudio) {
     add(
@@ -312,6 +317,30 @@ function validateGroupMedia(
       'MISSING_PASSAGE',
       `${path}.stimuli`,
       `${part} group requires a passage.`,
+    );
+  }
+  if (
+    part === 'PART_7' &&
+    group.type === 'SINGLE_PASSAGE' &&
+    passageCount !== 1
+  ) {
+    add(
+      errors,
+      'INVALID_SINGLE_PASSAGE_COUNT',
+      `${path}.stimuli`,
+      `Single-passage group requires exactly one passage; found ${passageCount}.`,
+    );
+  }
+  if (
+    part === 'PART_7' &&
+    group.type === 'MULTIPLE_PASSAGE' &&
+    ![2, 3].includes(passageCount)
+  ) {
+    add(
+      errors,
+      'INVALID_MULTIPLE_PASSAGE_COUNT',
+      `${path}.stimuli`,
+      `Multiple-passage group requires two or three passages; found ${passageCount}.`,
     );
   }
 }
