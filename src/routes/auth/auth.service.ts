@@ -22,20 +22,30 @@ export class AuthService {
   ) {}
 
   async findOrCreateGoogleUser(identity: GoogleIdentity): Promise<AuthUser> {
-    const user = await this.prisma.user.upsert({
-      where: { googleSubject: identity.subject },
-      create: {
-        googleSubject: identity.subject,
-        email: identity.email,
-        name: identity.name,
-        avatarUrl: identity.avatarUrl,
-      },
-      update: {
-        email: identity.email,
-        name: identity.name,
-        avatarUrl: identity.avatarUrl,
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleSubject: identity.subject }, { email: identity.email }],
       },
     });
+
+    const user = existing
+      ? await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            googleSubject: identity.subject,
+            email: identity.email,
+            name: identity.name,
+            avatarUrl: identity.avatarUrl,
+          },
+        })
+      : await this.prisma.user.create({
+          data: {
+            googleSubject: identity.subject,
+            email: identity.email,
+            name: identity.name,
+            avatarUrl: identity.avatarUrl,
+          },
+        });
     return this.toAuthUser(user);
   }
 

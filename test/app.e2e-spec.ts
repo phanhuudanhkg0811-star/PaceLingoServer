@@ -37,4 +37,8 @@ describe('AppController (e2e)', () => {
       service: 'pace-lingo-server',
     });
   });
+
+  it('/admin/media (GET) requires authentication', () => {
+    return request(app.getHttpServer()).get('/admin/media').expect(401);
+  });
 });

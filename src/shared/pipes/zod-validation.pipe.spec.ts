@@ -11,9 +11,12 @@ describe('ZodValidationPipe', () => {
       }),
     );
 
-    const result = pipe.transform({ email: 'user@example.com', age: '42' }, {
-      type: 'body',
-    } as never);
+    const result = pipe.transform(
+      { email: 'user@example.com', age: '42' },
+      {
+        type: 'body',
+      },
+    );
 
     expect(result).toEqual({ email: 'user@example.com', age: 42 });
   });
@@ -26,7 +29,7 @@ describe('ZodValidationPipe', () => {
     );
 
     expect(() =>
-      pipe.transform({ email: 'not-an-email' }, { type: 'body' } as never),
+      pipe.transform({ email: 'not-an-email' }, { type: 'body' }),
     ).toThrow(BadRequestException);
   });
 });

@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+const optionalString = z.preprocess(
+  (value) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  z.string().trim().min(1).optional(),
+);
+
+const optionalUrl = z.preprocess(
+  (value) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  z.string().url().optional(),
+);
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -15,8 +27,15 @@ export const envSchema = z
     JWT_SECRET: z.string().min(16).default('dev-secret-change-me-please'),
     JWT_EXPIRES_IN: z.string().default('15m'),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
-    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    GOOGLE_CLIENT_ID: optionalString,
+    GOOGLE_CLIENT_SECRET: optionalString,
+    R2_ACCOUNT_ID: optionalString,
+    R2_ACCESS_KEY_ID: optionalString,
+    R2_SECRET_ACCESS_KEY: optionalString,
+    R2_BUCKET: optionalString,
+    R2_PUBLIC_URL: optionalUrl,
+    MEDIA_MAX_IMAGE_MB: z.coerce.number().positive().default(10),
+    MEDIA_MAX_AUDIO_MB: z.coerce.number().positive().default(100),
   })
   .superRefine((env, context) => {
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
@@ -25,6 +44,22 @@ export const envSchema = z
         message:
           'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together',
         path: ['GOOGLE_CLIENT_ID'],
+      });
+    }
+
+    const r2Values = [
+      env.R2_ACCOUNT_ID,
+      env.R2_ACCESS_KEY_ID,
+      env.R2_SECRET_ACCESS_KEY,
+      env.R2_BUCKET,
+      env.R2_PUBLIC_URL,
+    ];
+    const configuredR2Values = r2Values.filter(Boolean).length;
+    if (configuredR2Values > 0 && configuredR2Values !== r2Values.length) {
+      context.addIssue({
+        code: 'custom',
+        message: 'All R2 configuration values must be set together',
+        path: ['R2_ACCOUNT_ID'],
       });
     }
 

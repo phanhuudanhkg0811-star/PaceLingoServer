@@ -157,13 +157,18 @@ const testMetadataSchema = z.object({
   type: z.enum(testTypes).default('FULL_TEST'),
   durationMinutes: z.number().int().positive().max(300),
   scoreConversionProfileId: z.string().trim().min(1).optional(),
+  fullListeningAudioId: z.string().trim().min(1).optional(),
 });
 
 export const createTestDraftSchema = testMetadataSchema.extend({
   content: testContentSchema.optional(),
 });
 
-export const updateTestDraftSchema = testMetadataSchema.partial();
+export const updateTestDraftSchema = testMetadataSchema.partial().extend({
+  fullListeningAudioId: z
+    .union([z.string().trim().min(1), z.null()])
+    .optional(),
+});
 
 export type CreateTestDraftInput = z.infer<typeof createTestDraftSchema>;
 export type UpdateTestDraftInput = z.infer<typeof updateTestDraftSchema>;

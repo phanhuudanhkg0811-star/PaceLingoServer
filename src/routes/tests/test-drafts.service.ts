@@ -62,7 +62,12 @@ export class TestDraftsService {
   }
 
   async create(input: CreateTestDraftInput, createdById: string) {
-    const { content, scoreConversionProfileId, ...metadata } = input;
+    const {
+      content,
+      scoreConversionProfileId,
+      fullListeningAudioId,
+      ...metadata
+    } = input;
     const totalQuestions = content ? countQuestions(content) : 0;
 
     return this.prisma.test.create({
@@ -72,6 +77,9 @@ export class TestDraftsService {
         createdBy: { connect: { id: createdById } },
         scoreConversionProfile: scoreConversionProfileId
           ? { connect: { id: scoreConversionProfileId } }
+          : undefined,
+        fullListeningAudio: fullListeningAudioId
+          ? { connect: { id: fullListeningAudioId } }
           : undefined,
         sections: content
           ? { create: content.sections.map(toSectionCreate) }
@@ -83,7 +91,8 @@ export class TestDraftsService {
 
   async updateMetadata(id: string, input: UpdateTestDraftInput) {
     await this.ensureEditable(id);
-    const { scoreConversionProfileId, ...metadata } = input;
+    const { scoreConversionProfileId, fullListeningAudioId, ...metadata } =
+      input;
 
     return this.prisma.test.update({
       where: { id },
@@ -93,6 +102,12 @@ export class TestDraftsService {
           scoreConversionProfileId === undefined
             ? undefined
             : { connect: { id: scoreConversionProfileId } },
+        fullListeningAudio:
+          fullListeningAudioId === undefined
+            ? undefined
+            : fullListeningAudioId === null
+              ? { disconnect: true }
+              : { connect: { id: fullListeningAudioId } },
       },
       include: treeInclude,
     });

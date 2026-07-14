@@ -36,6 +36,7 @@ describe('TestDraftsService', () => {
         data: expect.objectContaining({
           totalQuestions: 1,
           createdBy: { connect: { id: 'admin-1' } },
+          fullListeningAudio: { connect: { id: 'audio-1' } },
           sections: expect.objectContaining({ create: expect.any(Array) }),
         }),
       }),
@@ -80,6 +81,7 @@ function makeCreateInput(): CreateTestDraftInput {
     title: 'TOEIC draft',
     type: 'FULL_TEST',
     durationMinutes: 120,
+    fullListeningAudioId: 'audio-1',
     content: {
       sections: [
         {
