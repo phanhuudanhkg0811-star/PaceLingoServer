@@ -4,8 +4,8 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -18,31 +18,553 @@ enum Role {
   ADMIN
 }
 
+enum TestType {
+  FULL_TEST
+  MINI_TEST
+  PART_PRACTICE
+}
+
+enum TestStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TestVersionStatus {
+  BUILDING
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SectionKind {
+  LISTENING
+  READING
+}
+
+enum ToeicPart {
+  PART_1
+  PART_2
+  PART_3
+  PART_4
+  PART_5
+  PART_6
+  PART_7
+}
+
+enum DirectionMode {
+  DEFAULT
+  CUSTOM
+  NONE
+}
+
+enum QuestionGroupType {
+  PHOTO
+  QUESTION_RESPONSE
+  CONVERSATION
+  TALK
+  INCOMPLETE_SENTENCE
+  TEXT_COMPLETION
+  SINGLE_PASSAGE
+  MULTIPLE_PASSAGE
+}
+
+enum StimulusType {
+  HTML
+  IMAGE
+  AUDIO
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MediaType {
+  IMAGE
+  AUDIO
+}
+
+enum TimelineEventType {
+  DIRECTION
+  EXAMPLE
+  QUESTION
+  QUESTION_GROUP
+  PART_TRANSITION
+  LISTENING_END
+}
+
+enum AudioSegmentType {
+  ANSWER_EVIDENCE
+  CONTEXT
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED
+  ABANDONED
+}
+
+enum PracticeSourceType {
+  WRONG_ANSWERS
+  FLAGGED_QUESTIONS
+}
+
+enum PracticeMode {
+  RETRY
+}
+
+enum PracticeStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum ImportDraftStatus {
+  PARSED
+  NEEDS_REVIEW
+  VALIDATED
+  PUBLISHED
+  DISCARDED
+}
+
+enum ImportJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
-  id              String           @id @default(cuid())
-  googleSubject   String           @unique
-  email           String           @unique
-  name            String?
-  avatarUrl       String?
-  role            Role             @default(USER)
-  refreshSessions RefreshSession[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id               String            @id @default(cuid())
+  googleSubject    String            @unique
+  email            String            @unique
+  name             String?
+  avatarUrl        String?
+  role             Role              @default(USER)
+  refreshSessions  RefreshSession[]
+  createdTests     Test[]
+  createdMedia     MediaAsset[]
+  attempts         Attempt[]
+  practiceSessions PracticeSession[]
+  importDrafts     ImportDraft[]
+  importJobs       ImportJob[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model RefreshSession {
-  id            String    @id @default(cuid())
-  userId        String
-  tokenHash     String    @unique
-  familyId      String
-  expiresAt     DateTime
-  revokedAt     DateTime?
-  replacedById  String?
-  createdAt     DateTime  @default(now())
-  lastUsedAt    DateTime?
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String    @unique
+  familyId     String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
+}
+
+model ScoreConversionProfile {
+  id                   String   @id @default(cuid())
+  name                 String
+  source               String?
+  version              Int      @default(1)
+  listeningMappingJson Json
+  readingMappingJson   Json
+  isOfficial           Boolean  @default(false)
+  tests                Test[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([name, version])
+}
+
+model Test {
+  id                        String                  @id @default(cuid())
+  title                     String
+  description               String?
+  type                      TestType                @default(FULL_TEST)
+  status                    TestStatus              @default(DRAFT)
+  totalQuestions            Int                     @default(0)
+  durationMinutes           Int
+  fullListeningAudioId      String?
+  scoreConversionProfileId  String?
+  currentPublishedVersionId String?                 @unique
+  createdById               String
+  publishedAt               DateTime?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  createdBy                 User                    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  fullListeningAudio        MediaAsset?             @relation("FullListeningAudio", fields: [fullListeningAudioId], references: [id], onDelete: SetNull)
+  scoreConversionProfile    ScoreConversionProfile? @relation(fields: [scoreConversionProfileId], references: [id], onDelete: SetNull)
+  currentPublishedVersion   TestVersion?            @relation("CurrentPublishedVersion", fields: [currentPublishedVersionId], references: [id], onDelete: SetNull)
+  versions                  TestVersion[]           @relation("TestVersions")
+  sections                  TestSection[]
+  timelineEvents            AudioTimelineEvent[]
+  importDrafts              ImportDraft[]
+
+  @@index([status, type])
+  @@index([createdById])
+  @@index([scoreConversionProfileId])
+}
+
+model TestVersion {
+  id                         String            @id @default(cuid())
+  testId                     String
+  version                    Int
+  status                     TestVersionStatus @default(BUILDING)
+  schemaVersion              Int               @default(1)
+  candidatePayloadStorageKey String?
+  candidatePayloadHash       String?
+  answerKeyStorageKey        String?
+  answerKeyHash              String?
+  reviewPayloadStorageKey    String?
+  reviewPayloadHash          String?
+  publishedAt                DateTime?
+  createdAt                  DateTime          @default(now())
+  test                       Test              @relation("TestVersions", fields: [testId], references: [id], onDelete: Cascade)
+  currentlyPublishedFor      Test?             @relation("CurrentPublishedVersion")
+  attempts                   Attempt[]
+
+  @@unique([testId, version])
+  @@index([testId, status])
+  @@index([candidatePayloadHash])
+  @@index([answerKeyHash])
+}
+
+model TestSection {
+  id                  String               @id @default(cuid())
+  testId              String
+  title               String
+  kind                SectionKind
+  part                ToeicPart?
+  order               Int
+  durationMinutes     Int?
+  directionMode       DirectionMode        @default(DEFAULT)
+  directionTemplateId String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  test                Test                 @relation(fields: [testId], references: [id], onDelete: Cascade)
+  directionTemplate   DirectionTemplate?   @relation(fields: [directionTemplateId], references: [id], onDelete: SetNull)
+  questionGroups      QuestionGroup[]
+  timelineEvents      AudioTimelineEvent[]
+
+  @@unique([testId, order])
+  @@unique([testId, part])
+  @@index([directionTemplateId])
+}
+
+model QuestionGroup {
+  id             String               @id @default(cuid())
+  sectionId      String
+  externalId     String?
+  type           QuestionGroupType
+  title          String?
+  transcriptHtml String?
+  order          Int
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  section        TestSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stimuli        StimulusItem[]
+  questions      Question[]
+  timelineEvents AudioTimelineEvent[]
+
+  @@unique([sectionId, order])
+  @@unique([sectionId, externalId])
+  @@index([type])
+}
+
+model StimulusItem {
+  id           String        @id @default(cuid())
+  groupId      String
+  type         StimulusType
+  contentHtml  String?
+  mediaAssetId String?
+  altText      String?
+  order        Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  group        QuestionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset?   @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@unique([groupId, order])
+  @@index([mediaAssetId])
+}
+
+model Question {
+  id              String                    @id @default(cuid())
+  groupId         String
+  externalId      String?
+  number          Int
+  promptHtml      String
+  explanationHtml String?
+  grammarTopic    String?
+  vocabularyTags  String[]                  @default([])
+  difficulty      Difficulty?
+  order           Int
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  group           QuestionGroup             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  audioSegments   QuestionAudioSegment[]
+  timelineEvents  AudioTimelineEvent[]
+  userAnswers     UserAnswer[]
+  timings         QuestionTiming[]
+  practiceItems   PracticeSessionQuestion[]
+
+  @@unique([groupId, order])
+  @@unique([groupId, externalId])
+  @@index([number])
+  @@index([grammarTopic])
+  @@index([difficulty])
+}
+
+model QuestionOption {
+  id              String                    @id @default(cuid())
+  questionId      String
+  label           String
+  contentHtml     String
+  isCorrect       Boolean                   @default(false)
+  order           Int
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  question        Question                  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userAnswers     UserAnswer[]
+  practiceAnswers PracticeSessionQuestion[]
+
+  @@unique([questionId, label])
+  @@unique([questionId, order])
+  @@index([questionId, isCorrect])
+}
+
+model DirectionTemplate {
+  id                    String        @id @default(cuid())
+  part                  ToeicPart
+  directionText         String
+  directionAudioAssetId String?
+  exampleHtml           String?
+  exampleAudioAssetId   String?
+  version               Int           @default(1)
+  language              String        @default("en")
+  isDefault             Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  directionAudioAsset   MediaAsset?   @relation("DirectionAudio", fields: [directionAudioAssetId], references: [id], onDelete: SetNull)
+  exampleAudioAsset     MediaAsset?   @relation("ExampleAudio", fields: [exampleAudioAssetId], references: [id], onDelete: SetNull)
+  sections              TestSection[]
+
+  @@unique([part, language, version])
+  @@index([part, language, isDefault])
+}
+
+model MediaAsset {
+  id                      String                 @id @default(cuid())
+  type                    MediaType
+  url                     String
+  storageKey              String                 @unique
+  originalName            String
+  mimeType                String
+  sizeBytes               BigInt
+  width                   Int?
+  height                  Int?
+  durationMs              Int?
+  altText                 String?
+  createdById             String
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  createdBy               User                   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  fullListeningTests      Test[]                 @relation("FullListeningAudio")
+  stimulusItems           StimulusItem[]
+  directionAudioTemplates DirectionTemplate[]    @relation("DirectionAudio")
+  exampleAudioTemplates   DirectionTemplate[]    @relation("ExampleAudio")
+  questionAudioSegments   QuestionAudioSegment[]
+
+  @@index([type, createdAt])
+  @@index([createdById])
+}
+
+model AudioTimelineEvent {
+  id         String            @id @default(cuid())
+  testId     String
+  sectionId  String?
+  groupId    String?
+  questionId String?
+  type       TimelineEventType
+  startMs    Int
+  endMs      Int
+  order      Int
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  test       Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  section    TestSection?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  group      QuestionGroup?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  question   Question?         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, order])
+  @@index([testId, startMs, endMs])
+  @@index([sectionId])
+  @@index([groupId])
+  @@index([questionId])
+}
+
+model QuestionAudioSegment {
+  id           String           @id @default(cuid())
+  questionId   String
+  audioAssetId String
+  startMs      Int
+  endMs        Int
+  segmentType  AudioSegmentType
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  question     Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  audioAsset   MediaAsset       @relation(fields: [audioAssetId], references: [id], onDelete: Restrict)
+
+  @@unique([questionId, segmentType, startMs, endMs])
+  @@index([audioAssetId])
+}
+
+model Attempt {
+  id               String            @id @default(cuid())
+  userId           String
+  testVersionId    String
+  status           AttemptStatus     @default(IN_PROGRESS)
+  startedAt        DateTime          @default(now())
+  expiresAt        DateTime
+  submittedAt      DateTime?
+  listeningCorrect Int?
+  readingCorrect   Int?
+  listeningScore   Int?
+  readingScore     Int?
+  totalScore       Int?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testVersion      TestVersion       @relation(fields: [testVersionId], references: [id], onDelete: Restrict)
+  answers          UserAnswer[]
+  timings          QuestionTiming[]
+  practiceSessions PracticeSession[]
+
+  @@index([userId, status])
+  @@index([userId, startedAt])
+  @@index([testVersionId])
+}
+
+model UserAnswer {
+  id               String          @id @default(cuid())
+  attemptId        String
+  questionId       String
+  selectedOptionId String?
+  isFlagged        Boolean         @default(false)
+  answeredAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  attempt          Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question         Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption   QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+  @@index([selectedOptionId])
+}
+
+model QuestionTiming {
+  id            String    @id @default(cuid())
+  attemptId     String
+  questionId    String
+  activeTimeMs  Int       @default(0)
+  visitCount    Int       @default(0)
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  attempt       Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question      Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+}
+
+model PracticeSession {
+  id              String                    @id @default(cuid())
+  userId          String
+  sourceAttemptId String?
+  sourceType      PracticeSourceType
+  mode            PracticeMode              @default(RETRY)
+  durationMinutes Int?
+  status          PracticeStatus            @default(IN_PROGRESS)
+  createdAt       DateTime                  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime                  @updatedAt
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAttempt   Attempt?                  @relation(fields: [sourceAttemptId], references: [id], onDelete: SetNull)
+  questions       PracticeSessionQuestion[]
+
+  @@index([userId, status])
+  @@index([sourceAttemptId])
+}
+
+model PracticeSessionQuestion {
+  id                String          @id @default(cuid())
+  practiceSessionId String
+  questionId        String
+  order             Int
+  selectedOptionId  String?
+  answeredAt        DateTime?
+  practiceSession   PracticeSession @relation(fields: [practiceSessionId], references: [id], onDelete: Cascade)
+  question          Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption    QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceSessionId, questionId])
+  @@unique([practiceSessionId, order])
+  @@index([questionId])
+  @@index([selectedOptionId])
+}
+
+model ImportDraft {
+  id             String            @id @default(cuid())
+  createdById    String
+  targetTestId   String?
+  schemaVersion  Int
+  externalId     String?
+  contentHash    String
+  status         ImportDraftStatus @default(PARSED)
+  sourceJson     Json
+  normalizedJson Json?
+  validationJson Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  createdBy      User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  targetTest     Test?             @relation(fields: [targetTestId], references: [id], onDelete: SetNull)
+  jobs           ImportJob[]
+
+  @@unique([createdById, contentHash])
+  @@index([createdById, status])
+  @@index([targetTestId])
+  @@index([externalId])
+}
+
+model ImportJob {
+  id             String          @id @default(cuid())
+  draftId        String
+  createdById    String
+  status         ImportJobStatus @default(PENDING)
+  totalItems     Int             @default(0)
+  processedItems Int             @default(0)
+  errorJson      Json?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  draft          ImportDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  createdBy      User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([draftId, status])
+  @@index([createdById])
 }
