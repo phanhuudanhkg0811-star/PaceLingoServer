@@ -4,6 +4,24 @@ import type { TestDraftsService } from './test-drafts.service';
 type TestTree = Awaited<ReturnType<TestDraftsService['findTree']>>;
 
 describe('timeline validation', () => {
+  it('allows segmented full tests to publish without a full-audio timeline', () => {
+    const errors: Array<{ code: string; path: string; message: string }> = [];
+    const warnings: Array<{ code: string; path: string; message: string }> = [];
+
+    validateTimeline(
+      {
+        type: 'FULL_TEST',
+        fullListeningAudio: null,
+        timelineEvents: [],
+      } as unknown as TestTree,
+      errors,
+      warnings,
+    );
+
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
   it('reports overlap, important gaps and missing listening end', () => {
     const errors: Array<{ code: string; path: string; message: string }> = [];
     const warnings: Array<{ code: string; path: string; message: string }> = [];

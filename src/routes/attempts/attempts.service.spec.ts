@@ -63,6 +63,57 @@ describe('AttemptsService', () => {
     expect(result.id).toBe('attempt-1');
   });
 
+  it('reserves 45 minutes for a segmented full-test Listening section', async () => {
+    prisma.test.findFirst.mockResolvedValue({
+      id: 'test-1',
+      type: 'FULL_TEST',
+      durationMinutes: 120,
+      fullListeningAudio: null,
+      sections: [
+        {
+          kind: 'LISTENING',
+          durationMinutes: null,
+          questionGroups: [
+            {
+              stimuli: [{ mediaAsset: { durationMs: 12_000 } }],
+            },
+          ],
+        },
+        {
+          kind: 'READING',
+          durationMinutes: null,
+          questionGroups: [],
+        },
+      ],
+      timelineEvents: [],
+      currentPublishedVersion: { id: 'version-1', status: 'PUBLISHED' },
+    });
+    prisma.attempt.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(attemptResponse());
+    prisma.attempt.create.mockResolvedValue({ id: 'attempt-1' });
+
+    await service.startOrResume('test-1', 'user-1');
+
+    const createInput = prisma.attempt.create.mock.calls[0][0] as {
+      data: {
+        startedAt: Date;
+        listeningEndsAt: Date;
+        readingEndsAt: Date;
+        currentSection: string;
+      };
+    };
+    expect(
+      createInput.data.listeningEndsAt.getTime() -
+        createInput.data.startedAt.getTime(),
+    ).toBe(45 * 60_000);
+    expect(
+      createInput.data.readingEndsAt.getTime() -
+        createInput.data.startedAt.getTime(),
+    ).toBe(120 * 60_000);
+    expect(createInput.data.currentSection).toBe('LISTENING');
+  });
+
   it('ignores an answer batch older than the stored client sequence', async () => {
     prisma.attempt.findFirst.mockResolvedValue({
       id: 'attempt-1',

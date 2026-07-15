@@ -71,6 +71,26 @@ published test.
 - Missing `directionMode` becomes `DEFAULT`.
 - Missing media and timeline data is allowed during Phase 6.
 
+## Segmented Listening audio
+
+PaceLingo uses one `AUDIO` stimulus for each Listening question/group. Attach
+the real `mediaAssetId` in the admin editor after importing the JSON:
+
+- Part 1: one photo, one audio file, and one question per group.
+- Part 2: one audio file and one question per group.
+- Part 3: one conversation audio file and three questions per group.
+- Part 4: one talk audio file and three questions per group.
+
+Candidate runtime plays these files in group order and automatically advances
+when each file ends. `fullListeningAudioId` and a hand-authored timeline are
+optional legacy/fallback inputs; segmented group audio is preferred when both
+are present.
+
+For `FULL_TEST`, keep every section's `directionMode` as `DEFAULT` (or select a
+custom template). Runtime shows the Listening introduction, directions for
+Parts 1–4, the Reading introduction, and directions for Parts 5–7. Mini and
+Part Practice tests start directly at their first question.
+
 ## Part 1–2 import data versus candidate visibility
 
 `options[].contentHtml` remains required in the admin import for every Part.

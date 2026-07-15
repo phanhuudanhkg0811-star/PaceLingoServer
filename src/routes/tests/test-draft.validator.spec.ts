@@ -33,11 +33,20 @@ describe('validateTestDraft', () => {
     expect(result.valid).toBe(false);
     expect(codes).toEqual(
       expect.arrayContaining([
-        'MISSING_FULL_LISTENING_AUDIO',
         'INVALID_SECTION_KIND',
         'INVALID_CORRECT_OPTION',
       ]),
     );
+  });
+
+  it('accepts a full test made from per-group Listening audio', () => {
+    const draft = makeFullTest();
+    draft.fullListeningAudioId = null;
+
+    const result = validateTestDraft(draft);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 
   it('rejects duplicate ordering keys at the request boundary', () => {

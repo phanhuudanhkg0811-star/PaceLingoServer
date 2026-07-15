@@ -694,7 +694,11 @@ export function validateTimeline(
     }
   });
 
-  if (test.type === 'FULL_TEST') {
+  if (
+    test.type === 'FULL_TEST' &&
+    test.fullListeningAudio &&
+    events.length > 0
+  ) {
     const listeningEnds = events.filter(
       (event) => event.type === 'LISTENING_END',
     );
@@ -702,7 +706,8 @@ export function validateTimeline(
       errors.push({
         code: 'INVALID_LISTENING_END',
         path: 'timelineEvents',
-        message: 'Full test timeline requires exactly one LISTENING_END event.',
+        message:
+          'Full-audio tests require exactly one LISTENING_END timeline event.',
       });
     }
     const duration = test.fullListeningAudio?.durationMs;

@@ -51,11 +51,26 @@ export class AttemptsService {
       },
       select: {
         id: true,
+        type: true,
         durationMinutes: true,
         fullListeningAudio: { select: { durationMs: true } },
         sections: {
           orderBy: { order: 'asc' },
-          select: { kind: true, durationMinutes: true },
+          select: {
+            kind: true,
+            durationMinutes: true,
+            questionGroups: {
+              select: {
+                stimuli: {
+                  where: { type: 'AUDIO' },
+                  orderBy: { order: 'asc' },
+                  select: {
+                    mediaAsset: { select: { durationMs: true } },
+                  },
+                },
+              },
+            },
+          },
         },
         timelineEvents: { select: { endMs: true } },
         currentPublishedVersion: {
@@ -98,13 +113,30 @@ export class AttemptsService {
     const hasReading = published.sections.some(
       (section) => section.kind === 'READING',
     );
+    const segmentedListeningDurationMs = published.sections
+      .filter((section) => section.kind === 'LISTENING')
+      .flatMap((section) => section.questionGroups)
+      .reduce(
+        (sum, group) =>
+          sum + (group.stimuli[0]?.mediaAsset?.durationMs ?? 0),
+        0,
+      );
+    const explicitListeningMinutes = published.sections
+      .filter((section) => section.kind === 'LISTENING')
+      .reduce((sum, section) => sum + (section.durationMinutes ?? 0), 0);
+    const totalDurationMs = published.durationMinutes * 60_000;
     const listeningDuration = hasListening
-      ? (published.fullListeningAudio?.durationMs ?? timelineDurationMs)
+      ? explicitListeningMinutes > 0
+        ? explicitListeningMinutes * 60_000
+        : published.type === 'FULL_TEST' && hasReading
+          ? Math.min(45 * 60_000, totalDurationMs)
+          : segmentedListeningDurationMs ||
+            published.fullListeningAudio?.durationMs ||
+            timelineDurationMs
       : 0;
     const explicitReadingMinutes = published.sections
       .filter((section) => section.kind === 'READING')
       .reduce((sum, section) => sum + (section.durationMinutes ?? 0), 0);
-    const totalDurationMs = published.durationMinutes * 60_000;
     const readingDuration = hasReading
       ? explicitReadingMinutes > 0
         ? explicitReadingMinutes * 60_000

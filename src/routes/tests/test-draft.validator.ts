@@ -348,14 +348,6 @@ function validateFullTest(
       'Full test must contain 200 questions.',
     );
   }
-  if (!test.fullListeningAudioId) {
-    add(
-      errors,
-      'MISSING_FULL_LISTENING_AUDIO',
-      'fullListeningAudioId',
-      'Full test requires a full Listening audio asset.',
-    );
-  }
   const sortedNumbers = [...questionNumbers].sort(
     (left, right) => left - right,
   );
