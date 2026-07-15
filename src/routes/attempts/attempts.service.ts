@@ -42,7 +42,7 @@ export class AttemptsService {
     private readonly config: ConfigService<EnvConfig, true>,
   ) {}
 
-  async startOrResume(testId: string, userId: string) {
+  async startOrResume(testId: string, userId: string, restart = false) {
     const published = await this.prisma.test.findFirst({
       where: {
         id: testId,
@@ -99,7 +99,16 @@ export class AttemptsService {
       if (existing.expiresAt <= new Date()) {
         return this.finish(existing.id, userId, true);
       }
-      return this.attemptResponse(existing.id, userId);
+      if (!restart) {
+        return {
+          ...(await this.attemptResponse(existing.id, userId)),
+          resumed: true,
+        };
+      }
+      await this.prisma.attempt.update({
+        where: { id: existing.id },
+        data: { status: 'ABANDONED' },
+      });
     }
 
     const now = new Date();
@@ -117,8 +126,7 @@ export class AttemptsService {
       .filter((section) => section.kind === 'LISTENING')
       .flatMap((section) => section.questionGroups)
       .reduce(
-        (sum, group) =>
-          sum + (group.stimuli[0]?.mediaAsset?.durationMs ?? 0),
+        (sum, group) => sum + (group.stimuli[0]?.mediaAsset?.durationMs ?? 0),
         0,
       );
     const explicitListeningMinutes = published.sections
@@ -171,7 +179,10 @@ export class AttemptsService {
       },
       select: { id: true },
     });
-    return this.attemptResponse(attempt.id, userId);
+    return {
+      ...(await this.attemptResponse(attempt.id, userId)),
+      resumed: false,
+    };
   }
 
   async findOne(id: string, userId: string) {

@@ -21,6 +21,13 @@ Dùng HTML khi thông tin cần làm bài chủ yếu là chữ và có thể đ
 - tài liệu Part 7 mà thứ tự đọc và quan hệ hàng/cột có thể giữ bằng semantic
   HTML.
 
+> **Quy tắc chống lạm dụng ảnh:** cụm từ “Look at the graphic” trong câu hỏi
+> không tự động có nghĩa stimulus phải là IMAGE. Nếu graphic thực chất chỉ là
+> bảng, lịch trình, danh sách, website outline, bảng tenant/floor hoặc bảng số
+> liệu có hàng/cột rõ ràng thì bắt buộc dựng bằng semantic HTML. Quy tắc này áp
+> dụng cả Part 3 và Part 4. Chỉ giữ IMAGE khi vị trí không gian, đường đi, hình
+> dạng, mũi tên hoặc quan hệ trực quan là dữ kiện cần để trả lời.
+
 AI phải chép đủ từng chữ nhìn thấy được. Không được bỏ sender, recipient,
 subject, ngày tháng, tiêu đề, chú thích, đơn vị, giá, header bảng, footer hoặc
 đoạn chữ nhỏ nếu chúng có thể ảnh hưởng đáp án.
@@ -168,6 +175,12 @@ tài liệu vào một chuỗi HTML:
 ]
 ```
 
+Quy tắc này áp dụng tương tự cho triple passage: phải có đúng ba stimulus với
+`order` lần lượt là `0`, `1`, `2`. Mỗi stimulus HTML phải có đúng một phần tử
+gốc `<article>`. Không đặt nhiều email/article/form/review khác nhau vào chung
+một `<article>`, kể cả khi chúng xuất hiện trên cùng một trang PDF. Việc gộp
+nhiều tài liệu vào một stimulus bị xem là lỗi cấu trúc import.
+
 ## OCR không chắc chắn
 
 - Một mảnh nhỏ không đọc được nhưng không làm đổi cấu trúc: giữ đúng vị trí
@@ -215,7 +228,11 @@ Answer key: <LOCATION OR NOT PROVIDED>
 
 - Mỗi group Part 6 có đúng một passage và bốn câu hỏi.
 - Mỗi group Part 7 có một, hai hoặc ba stimulus đúng với nguồn.
+- Mỗi tài liệu của double/triple passage là một stimulus và một `<article>`
+  độc lập; không có một stimulus chứa nhiều tài liệu ghép chung.
 - Không có email/table/passage thuần chữ bị thay bằng placeholder vô lý.
+- Bảng/lịch trình thuần chữ trong Part 3–4 đã được dựng bằng `<table>`, kể cả
+  khi đề gọi nó là “graphic”.
 - Không có sơ đồ hoặc hình quan trọng bị AI đoán thành HTML.
 - Tất cả placeholder bắt đầu bằng `[MEDIA_REQUIRED]` và không có
   `mediaAssetId`.

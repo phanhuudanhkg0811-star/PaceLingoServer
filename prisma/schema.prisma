@@ -227,6 +227,7 @@ model Test {
   totalQuestions            Int                     @default(0)
   durationMinutes           Int
   fullListeningAudioId      String?
+  listeningIntroAudioId     String?
   scoreConversionProfileId  String?
   currentPublishedVersionId String?                 @unique
   createdById               String
@@ -235,6 +236,7 @@ model Test {
   updatedAt                 DateTime                @updatedAt
   createdBy                 User                    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   fullListeningAudio        MediaAsset?             @relation("FullListeningAudio", fields: [fullListeningAudioId], references: [id], onDelete: SetNull)
+  listeningIntroAudio       MediaAsset?             @relation("ListeningIntroAudio", fields: [listeningIntroAudioId], references: [id], onDelete: SetNull)
   scoreConversionProfile    ScoreConversionProfile? @relation(fields: [scoreConversionProfileId], references: [id], onDelete: SetNull)
   currentPublishedVersion   TestVersion?            @relation("CurrentPublishedVersion", fields: [currentPublishedVersionId], references: [id], onDelete: SetNull)
   versions                  TestVersion[]           @relation("TestVersions")
@@ -246,6 +248,7 @@ model Test {
   @@index([status, type])
   @@index([createdById])
   @@index([scoreConversionProfileId])
+  @@index([listeningIntroAudioId])
 }
 
 model TestVersion {
@@ -416,6 +419,7 @@ model MediaAsset {
   createdBy               User                   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   folder                  MediaFolder?           @relation(fields: [folderId], references: [id], onDelete: SetNull)
   fullListeningTests      Test[]                 @relation("FullListeningAudio")
+  listeningIntroTests     Test[]                 @relation("ListeningIntroAudio")
   stimulusItems           StimulusItem[]
   directionAudioTemplates DirectionTemplate[]    @relation("DirectionAudio")
   exampleAudioTemplates   DirectionTemplate[]    @relation("ExampleAudio")

@@ -20,6 +20,7 @@ import { R2StorageService } from './r2-storage.service';
 
 const usageCountSelect = {
   fullListeningTests: true,
+  listeningIntroTests: true,
   stimulusItems: true,
   directionAudioTemplates: true,
   exampleAudioTemplates: true,
@@ -57,7 +58,9 @@ export class MediaService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.mediaAsset.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // The id tie-breaker keeps offset pagination deterministic when a batch
+        // upload creates many assets with the same timestamp.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         include: {
@@ -252,6 +255,7 @@ export class MediaService {
         id: true,
         originalName: true,
         fullListeningTests: { select: { id: true, title: true } },
+        listeningIntroTests: { select: { id: true, title: true } },
         stimulusItems: {
           select: { id: true, group: { select: { id: true, title: true } } },
         },

@@ -28,8 +28,8 @@ export class TestPublishingService {
 
   async publish(testId: string) {
     const test = await this.tests.findTree(testId);
-    if (test.status !== 'DRAFT') {
-      throw new BadRequestException('Only draft tests can be published');
+    if (test.status === 'ARCHIVED') {
+      throw new BadRequestException('Archived tests cannot be published');
     }
     const validation = await this.tests.validate(testId);
     if (!validation.valid) {
@@ -140,6 +140,7 @@ export function buildSnapshots(test: TestTree, defaults: DefaultDirection[]) {
       durationMinutes: test.durationMinutes,
       totalQuestions: test.totalQuestions,
       fullListeningAudio: mediaPayload(test.fullListeningAudio),
+      listeningIntroAudio: mediaPayload(test.listeningIntroAudio),
     },
     sections: test.sections.map((section) => {
       const hideSpokenChoices =

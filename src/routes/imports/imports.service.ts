@@ -214,6 +214,11 @@ export class ImportsService {
     });
   }
 
+  async remove(id: string, userId: string) {
+    await this.findOne(id, userId);
+    await this.prisma.importDraft.delete({ where: { id } });
+  }
+
   private async applyImport(
     normalized: ReturnType<typeof createTestDraftSchema.parse>,
     mode: PublishImportInput['mode'],

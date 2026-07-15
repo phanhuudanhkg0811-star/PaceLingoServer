@@ -18,6 +18,10 @@ import {
 } from './candidate-runtime.schema';
 import { CandidateRuntimeService } from './candidate-runtime.service';
 import { AttemptsService } from '../attempts/attempts.service';
+import {
+  startAttemptSchema,
+  type StartAttemptInput,
+} from '../attempts/attempt.schemas';
 
 type CandidateRequest = Request & { user: AuthUser };
 
@@ -52,7 +56,11 @@ export class CandidateTestsController {
   }
 
   @Post(':id/attempts')
-  startAttempt(@Param('id') id: string, @Req() request: CandidateRequest) {
-    return this.attempts.startOrResume(id, request.user.id);
+  startAttempt(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(startAttemptSchema)) input: StartAttemptInput,
+    @Req() request: CandidateRequest,
+  ) {
+    return this.attempts.startOrResume(id, request.user.id, input.restart);
   }
 }

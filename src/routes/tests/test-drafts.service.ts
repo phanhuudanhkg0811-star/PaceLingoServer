@@ -25,6 +25,7 @@ import type {
 const treeInclude = {
   scoreConversionProfile: true,
   fullListeningAudio: true,
+  listeningIntroAudio: true,
   currentPublishedVersion: true,
   sections: {
     orderBy: { order: 'asc' as const },
@@ -89,6 +90,7 @@ export class TestDraftsService {
       content,
       scoreConversionProfileId,
       fullListeningAudioId,
+      listeningIntroAudioId,
       ...metadata
     } = input;
     const totalQuestions = content ? countQuestions(content) : 0;
@@ -104,6 +106,9 @@ export class TestDraftsService {
         fullListeningAudio: fullListeningAudioId
           ? { connect: { id: fullListeningAudioId } }
           : undefined,
+        listeningIntroAudio: listeningIntroAudioId
+          ? { connect: { id: listeningIntroAudioId } }
+          : undefined,
         sections: content
           ? { create: content.sections.map(toSectionCreate) }
           : undefined,
@@ -114,8 +119,12 @@ export class TestDraftsService {
 
   async updateMetadata(id: string, input: UpdateTestDraftInput) {
     await this.ensureEditable(id);
-    const { scoreConversionProfileId, fullListeningAudioId, ...metadata } =
-      input;
+    const {
+      scoreConversionProfileId,
+      fullListeningAudioId,
+      listeningIntroAudioId,
+      ...metadata
+    } = input;
 
     return this.prisma.test.update({
       where: { id },
@@ -131,6 +140,12 @@ export class TestDraftsService {
             : fullListeningAudioId === null
               ? { disconnect: true }
               : { connect: { id: fullListeningAudioId } },
+        listeningIntroAudio:
+          listeningIntroAudioId === undefined
+            ? undefined
+            : listeningIntroAudioId === null
+              ? { disconnect: true }
+              : { connect: { id: listeningIntroAudioId } },
       },
       include: treeInclude,
     });
@@ -169,8 +184,8 @@ export class TestDraftsService {
       },
     });
     if (!test) throw new NotFoundException('Test draft was not found');
-    if (test.status !== 'DRAFT') {
-      throw new ConflictException('Only draft tests can be edited');
+    if (test.status === 'ARCHIVED') {
+      throw new ConflictException('Archived tests cannot be edited');
     }
 
     const existingParts = new Set(test.sections.map((section) => section.part));
@@ -225,7 +240,11 @@ export class TestDraftsService {
     const validation = validateTestDraft(test);
     validateTimeline(test, validation.errors, validation.warnings);
     validateMediaUrls(test, validation.errors);
-    await this.validateDefaultDirections(test, validation.errors);
+    await this.validateDefaultDirections(
+      test,
+      validation.errors,
+      validation.warnings,
+    );
     validation.valid = validation.errors.length === 0;
     return validation;
   }
@@ -268,16 +287,44 @@ export class TestDraftsService {
   }
 
   async updateQuestion(id: string, input: UpdateQuestionInput) {
-    await this.ensureQuestionEditable(id);
+    const question = await this.ensureQuestionEditable(id);
     return this.prisma.$transaction(async (transaction) => {
-      await transaction.questionOption.deleteMany({
-        where: { questionId: id },
-      });
+      const unusedOptionIds = new Set(
+        question.options.map((option) => option.id),
+      );
+      for (const option of input.options) {
+        const existing =
+          question.options.find(
+            (candidate) =>
+              unusedOptionIds.has(candidate.id) &&
+              candidate.label === option.label,
+          ) ??
+          question.options.find(
+            (candidate) =>
+              unusedOptionIds.has(candidate.id) &&
+              candidate.order === option.order,
+          );
+        if (existing) {
+          unusedOptionIds.delete(existing.id);
+          await transaction.questionOption.update({
+            where: { id: existing.id },
+            data: option,
+          });
+        } else {
+          await transaction.questionOption.create({
+            data: { ...option, questionId: id },
+          });
+        }
+      }
+      if (unusedOptionIds.size > 0) {
+        await transaction.questionOption.deleteMany({
+          where: { id: { in: [...unusedOptionIds] } },
+        });
+      }
       return transaction.question.update({
         where: { id },
         data: {
           ...questionData(input),
-          options: { create: input.options },
         },
         include: {
           options: { orderBy: { order: 'asc' } },
@@ -573,8 +620,8 @@ export class TestDraftsService {
       select: { status: true },
     });
     if (!test) throw new NotFoundException('Test draft was not found');
-    if (test.status !== 'DRAFT') {
-      throw new ConflictException('Only draft tests can be edited');
+    if (test.status === 'ARCHIVED') {
+      throw new ConflictException('Archived tests cannot be edited');
     }
   }
 
@@ -584,8 +631,8 @@ export class TestDraftsService {
       include: { section: { include: { test: true } } },
     });
     if (!group) throw new NotFoundException('Question group not found');
-    if (group.section.test.status !== 'DRAFT') {
-      throw new ConflictException('Only draft tests can be edited');
+    if (group.section.test.status === 'ARCHIVED') {
+      throw new ConflictException('Archived tests cannot be edited');
     }
     return group;
   }
@@ -599,8 +646,8 @@ export class TestDraftsService {
       },
     });
     if (!question) throw new NotFoundException('Question not found');
-    if (question.group.section.test.status !== 'DRAFT') {
-      throw new ConflictException('Only draft tests can be edited');
+    if (question.group.section.test.status === 'ARCHIVED') {
+      throw new ConflictException('Archived tests cannot be edited');
     }
     return question;
   }
@@ -626,6 +673,7 @@ export class TestDraftsService {
   private async validateDefaultDirections(
     test: Awaited<ReturnType<TestDraftsService['findTree']>>,
     errors: Array<{ code: string; path: string; message: string }>,
+    warnings: Array<{ code: string; path: string; message: string }>,
   ) {
     const defaultParts = test.sections
       .filter((section) => section.directionMode === 'DEFAULT' && section.part)
@@ -633,7 +681,7 @@ export class TestDraftsService {
     if (!defaultParts.length) return;
     const defaults = await this.prisma.directionTemplate.findMany({
       where: { part: { in: defaultParts }, language: 'en', isDefault: true },
-      select: { part: true },
+      select: { part: true, updatedAt: true },
     });
     const available = new Set(defaults.map((item) => item.part));
     defaultParts.forEach((part) => {
@@ -645,6 +693,18 @@ export class TestDraftsService {
         });
       }
     });
+    const publishedAt = test.currentPublishedVersion?.publishedAt;
+    if (test.status === 'PUBLISHED' && publishedAt) {
+      defaults.forEach((template) => {
+        if (template.updatedAt > publishedAt) {
+          warnings.push({
+            code: 'DIRECTION_UPDATED_AFTER_PUBLISH',
+            path: `parts.${template.part}.direction`,
+            message: `${template.part} Direction was updated after the current version was published. Publish a new version to apply its latest audio and text.`,
+          });
+        }
+      });
+    }
   }
 }
 
@@ -731,6 +791,7 @@ function validateMediaUrls(
 ) {
   const media = [
     test.fullListeningAudio,
+    test.listeningIntroAudio,
     ...test.sections.flatMap((section) =>
       section.questionGroups.flatMap((group) => [
         ...group.stimuli.map((stimulus) => stimulus.mediaAsset),

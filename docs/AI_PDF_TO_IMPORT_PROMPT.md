@@ -92,6 +92,12 @@ Use an HTML stimulus when:
   em, and br elements;
 - converting it does not remove information needed to answer a question.
 
+The phrase "Look at the graphic" does not by itself justify IMAGE. In Parts 3
+and 4, a readable schedule, tenant/floor list, Web-site outline, price table,
+or numeric row/column table MUST be semantic HTML. Use IMAGE only when spatial
+position, routes, shapes, arrows, or visual relationships carry answer-relevant
+meaning.
+
 HTML requirements:
 - use semantic HTML only;
 - do not add CSS, script, iframe, external resources, or event attributes;
@@ -152,6 +158,9 @@ VALIDATION BEFORE OUTPUT
 - Ensure every requested question number occurs exactly once and every supplied
   explanation is mapped to the same numbered question.
 - Ensure Part 1 labels are exactly A/B/C/D and Part 2 labels exactly A/B/C.
+- Ensure every Part 7 source document is a separate ordered stimulus with one
+  root article. Never combine a double/triple passage into one HTML stimulus.
+- Ensure readable Part 3/4 tables are HTML rather than MEDIA_REQUIRED images.
 - Ensure no prompt begins with a number/range and no option contains the next
   numbered question.
 - Search promptHtml, options, transcripts and stimuli for Vietnamese, answer

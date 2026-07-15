@@ -175,6 +175,7 @@ const testMetadataSchema = z.object({
   durationMinutes: z.number().int().positive().max(300),
   scoreConversionProfileId: z.string().trim().min(1).optional(),
   fullListeningAudioId: z.string().trim().min(1).optional(),
+  listeningIntroAudioId: z.string().trim().min(1).optional(),
 });
 
 export const createTestDraftSchema = testMetadataSchema.extend({
@@ -184,6 +185,9 @@ export const createTestDraftSchema = testMetadataSchema.extend({
 export const updateTestDraftSchema = testMetadataSchema.partial().extend({
   description: z.union([z.string().trim().max(5000), z.null()]).optional(),
   fullListeningAudioId: z
+    .union([z.string().trim().min(1), z.null()])
+    .optional(),
+  listeningIntroAudioId: z
     .union([z.string().trim().min(1), z.null()])
     .optional(),
 });

@@ -114,6 +114,37 @@ describe('AttemptsService', () => {
     expect(createInput.data.currentSection).toBe('LISTENING');
   });
 
+  it('abandons the active attempt before starting over', async () => {
+    prisma.test.findFirst.mockResolvedValue({
+      id: 'test-1',
+      type: 'PART_PRACTICE',
+      durationMinutes: 30,
+      fullListeningAudio: null,
+      sections: [
+        { kind: 'READING', durationMinutes: null, questionGroups: [] },
+      ],
+      timelineEvents: [],
+      currentPublishedVersion: { id: 'version-1', status: 'PUBLISHED' },
+    });
+    prisma.attempt.findFirst
+      .mockResolvedValueOnce({
+        id: 'attempt-old',
+        expiresAt: new Date(Date.now() + 60_000),
+      })
+      .mockResolvedValueOnce(attemptResponse());
+    prisma.attempt.update.mockResolvedValue({ id: 'attempt-old' });
+    prisma.attempt.create.mockResolvedValue({ id: 'attempt-1' });
+
+    const result = await service.startOrResume('test-1', 'user-1', true);
+
+    expect(prisma.attempt.update).toHaveBeenCalledWith({
+      where: { id: 'attempt-old' },
+      data: { status: 'ABANDONED' },
+    });
+    expect(prisma.attempt.create).toHaveBeenCalled();
+    expect(result.resumed).toBe(false);
+  });
+
   it('ignores an answer batch older than the stored client sequence', async () => {
     prisma.attempt.findFirst.mockResolvedValue({
       id: 'attempt-1',

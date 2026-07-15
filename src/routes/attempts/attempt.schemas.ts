@@ -27,6 +27,10 @@ export const attemptProgressSchema = z.object({
   currentQuestionId: z.string().min(1).nullable(),
 });
 
+export const startAttemptSchema = z.object({
+  restart: z.boolean().optional().default(false),
+});
+
 export const retryAttemptSchema = z.object({
   maxQuestions: z.number().int().min(1).max(100).optional(),
 });
@@ -44,5 +48,6 @@ export const practiceSubmitSchema = z.object({
 
 export type AttemptBatchInput = z.infer<typeof attemptBatchSchema>;
 export type AttemptProgressInput = z.infer<typeof attemptProgressSchema>;
+export type StartAttemptInput = z.infer<typeof startAttemptSchema>;
 export type RetryAttemptInput = z.infer<typeof retryAttemptSchema>;
 export type PracticeSubmitInput = z.infer<typeof practiceSubmitSchema>;

@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -81,5 +83,11 @@ export class ImportsController {
   @Post(':id/discard')
   discard(@Param('id') id: string, @Req() request: AdminRequest) {
     return this.imports.discard(id, request.user.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(@Param('id') id: string, @Req() request: AdminRequest) {
+    return this.imports.remove(id, request.user.id);
   }
 }

@@ -113,6 +113,7 @@ function makeTestTree() {
     totalQuestions: 1,
     scoreConversionProfile: null,
     fullListeningAudio: null,
+    listeningIntroAudio: null,
     timelineEvents: [],
     sections: [
       {

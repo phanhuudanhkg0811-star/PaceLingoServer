@@ -66,6 +66,7 @@ describe('MediaService', () => {
       storageKey: 'image/key.png',
       _count: {
         fullListeningTests: 0,
+        listeningIntroTests: 0,
         stimulusItems: 1,
         directionAudioTemplates: 0,
         exampleAudioTemplates: 0,

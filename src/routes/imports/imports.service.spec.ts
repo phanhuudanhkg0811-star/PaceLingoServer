@@ -8,6 +8,7 @@ describe('ImportsService', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
+      delete: jest.fn(),
     },
   };
   const tests = { findTree: jest.fn() };
@@ -46,5 +47,20 @@ describe('ImportsService', () => {
     await expect(
       service.publish('import-1', { mode: 'CREATE_TEST' }, 'admin-1'),
     ).resolves.toEqual(expect.objectContaining({ duplicate: true }));
+  });
+
+  it('deletes an owned import without deleting its target test', async () => {
+    prisma.importDraft.findFirst.mockResolvedValue({
+      id: 'import-1',
+      status: 'PUBLISHED',
+      targetTestId: 'test-1',
+    });
+    prisma.importDraft.delete.mockResolvedValue({ id: 'import-1' });
+
+    await service.remove('import-1', 'admin-1');
+
+    expect(prisma.importDraft.delete).toHaveBeenCalledWith({
+      where: { id: 'import-1' },
+    });
   });
 });
