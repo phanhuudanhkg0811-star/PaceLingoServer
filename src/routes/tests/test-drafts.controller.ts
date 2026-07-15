@@ -196,6 +196,12 @@ export class TestDraftsController {
     return this.publishing.publish(id);
   }
 
+  @Post(':id/archive')
+  @HttpCode(204)
+  archive(@Param('id') id: string) {
+    return this.testDrafts.archive(id);
+  }
+
   @Delete(':id')
   @HttpCode(204)
   remove(@Param('id') id: string) {

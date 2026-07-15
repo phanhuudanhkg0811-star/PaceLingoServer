@@ -137,22 +137,53 @@ enum ImportJobStatus {
   FAILED
 }
 
+enum FeedbackType {
+  CONTACT
+  QUESTION_ERROR
+}
+
+enum FeedbackStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 model User {
-  id               String            @id @default(cuid())
-  googleSubject    String            @unique
-  email            String            @unique
-  name             String?
-  avatarUrl        String?
-  role             Role              @default(USER)
-  refreshSessions  RefreshSession[]
-  createdTests     Test[]
-  createdMedia     MediaAsset[]
-  attempts         Attempt[]
-  practiceSessions PracticeSession[]
-  importDrafts     ImportDraft[]
-  importJobs       ImportJob[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                  String            @id @default(cuid())
+  googleSubject       String            @unique
+  email               String            @unique
+  name                String?
+  avatarUrl           String?
+  role                Role              @default(USER)
+  refreshSessions     RefreshSession[]
+  createdTests        Test[]
+  createdMedia        MediaAsset[]
+  createdMediaFolders MediaFolder[]
+  attempts            Attempt[]
+  practiceSessions    PracticeSession[]
+  importDrafts        ImportDraft[]
+  importJobs          ImportJob[]
+  feedbackReports     FeedbackReport[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+model FeedbackReport {
+  id          String         @id @default(cuid())
+  userId      String?
+  type        FeedbackType
+  status      FeedbackStatus @default(OPEN)
+  name        String?
+  email       String?
+  subject     String
+  message     String
+  contextJson Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, status, createdAt])
+  @@index([userId, createdAt])
 }
 
 model RefreshSession {
@@ -378,10 +409,12 @@ model MediaAsset {
   height                  Int?
   durationMs              Int?
   altText                 String?
+  folderId                String?
   createdById             String
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   createdBy               User                   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  folder                  MediaFolder?           @relation(fields: [folderId], references: [id], onDelete: SetNull)
   fullListeningTests      Test[]                 @relation("FullListeningAudio")
   stimulusItems           StimulusItem[]
   directionAudioTemplates DirectionTemplate[]    @relation("DirectionAudio")
@@ -389,7 +422,20 @@ model MediaAsset {
   questionAudioSegments   QuestionAudioSegment[]
 
   @@index([type, createdAt])
+  @@index([folderId, createdAt])
   @@index([createdById])
+}
+
+model MediaFolder {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  assets      MediaAsset[]
+
+  @@index([createdById, createdAt])
 }
 
 model AudioTimelineEvent {
@@ -474,7 +520,7 @@ model UserAnswer {
   isFlagged        Boolean         @default(false)
   clientSequence   Int             @default(0)
   answeredAt       DateTime?
-  isCorrect         Boolean?
+  isCorrect        Boolean?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   attempt          Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)

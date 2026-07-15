@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -19,7 +19,11 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "prisma db seed",
-    "seed:run": "npm run build --silent && node dist/prisma/seed.js"
+    "seed:run": "npm run build --silent && node dist/prisma/seed.js",
+    "db:backup": "node scripts/backup-database.mjs",
+    "audit:readiness": "npm run build --silent && node scripts/audit-public-readiness.mjs",
+    "audit:import": "node scripts/audit-import-json.mjs",
+    "merge:imports": "node scripts/merge-import-json.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",

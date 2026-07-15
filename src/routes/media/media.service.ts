@@ -10,8 +10,10 @@ import { unlink } from 'node:fs/promises';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { MediaFileInspectorService } from './media-file-inspector.service';
 import type {
+  CreateMediaFolderInput,
   MediaListQuery,
   MediaUploadInput,
+  UpdateMediaFolderInput,
   UpdateMediaInput,
 } from './media.schemas';
 import { R2StorageService } from './r2-storage.service';
@@ -37,6 +39,7 @@ export class MediaService {
   async list(query: MediaListQuery) {
     const where = {
       type: query.type,
+      folderId: query.folder === 'unfiled' ? null : query.folder || undefined,
       OR: query.search
         ? [
             {
@@ -57,7 +60,10 @@ export class MediaService {
         orderBy: { createdAt: 'desc' },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        include: { _count: { select: usageCountSelect } },
+        include: {
+          folder: true,
+          _count: { select: usageCountSelect },
+        },
       }),
       this.prisma.mediaAsset.count({ where }),
     ]);
@@ -73,10 +79,59 @@ export class MediaService {
     };
   }
 
+  listFolders() {
+    return this.prisma.mediaFolder.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { assets: true } } },
+    });
+  }
+
+  async createFolder(input: CreateMediaFolderInput, userId: string) {
+    const existing = await this.prisma.mediaFolder.findUnique({
+      where: { name: input.name },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictException('Media folder already exists');
+    return this.prisma.mediaFolder.create({
+      data: { name: input.name, createdById: userId },
+      include: { _count: { select: { assets: true } } },
+    });
+  }
+
+  async updateFolder(id: string, input: UpdateMediaFolderInput) {
+    const folder = await this.prisma.mediaFolder.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!folder) throw new NotFoundException('Media folder was not found');
+    const duplicate = await this.prisma.mediaFolder.findFirst({
+      where: { name: input.name, id: { not: id } },
+      select: { id: true },
+    });
+    if (duplicate) throw new ConflictException('Media folder already exists');
+    return this.prisma.mediaFolder.update({
+      where: { id },
+      data: { name: input.name },
+      include: { _count: { select: { assets: true } } },
+    });
+  }
+
+  async removeFolder(id: string) {
+    const folder = await this.prisma.mediaFolder.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!folder) throw new NotFoundException('Media folder was not found');
+    await this.prisma.mediaFolder.delete({ where: { id } });
+  }
+
   async findOne(id: string) {
     const media = await this.prisma.mediaAsset.findUnique({
       where: { id },
-      include: { _count: { select: usageCountSelect } },
+      include: {
+        folder: true,
+        _count: { select: usageCountSelect },
+      },
     });
     if (!media) throw new NotFoundException('Media asset was not found');
     return media;
@@ -90,6 +145,7 @@ export class MediaService {
     if (!file) throw new BadRequestException('A media file is required');
     try {
       const inspected = await this.inspector.inspect(file);
+      await this.ensureFolder(input.folderId);
       const storageKey = createStorageKey(inspected.type, inspected.extension);
       const url = await this.storage.upload(
         file.path,
@@ -109,9 +165,13 @@ export class MediaService {
             height: inspected.height,
             durationMs: inspected.durationMs,
             altText: input.altText,
+            folderId: input.folderId,
             createdById: userId,
           },
-          include: { _count: { select: usageCountSelect } },
+          include: {
+            folder: true,
+            _count: { select: usageCountSelect },
+          },
         });
       } catch (error) {
         await this.storage.delete(storageKey).catch(() => undefined);
@@ -156,7 +216,10 @@ export class MediaService {
             durationMs: inspected.durationMs,
             altText: input.altText ?? existing.altText,
           },
-          include: { _count: { select: usageCountSelect } },
+          include: {
+            folder: true,
+            _count: { select: usageCountSelect },
+          },
         });
         await this.deleteObjectBestEffort(existing.storageKey);
         return updated;
@@ -171,10 +234,14 @@ export class MediaService {
 
   async update(id: string, input: UpdateMediaInput) {
     await this.findOne(id);
+    await this.ensureFolder(input.folderId);
     return this.prisma.mediaAsset.update({
       where: { id },
       data: input,
-      include: { _count: { select: usageCountSelect } },
+      include: {
+        folder: true,
+        _count: { select: usageCountSelect },
+      },
     });
   }
 
@@ -220,6 +287,15 @@ export class MediaService {
         `Could not delete R2 object ${storageKey}: ${String(error)}`,
       );
     }
+  }
+
+  private async ensureFolder(folderId: string | null | undefined) {
+    if (!folderId) return;
+    const folder = await this.prisma.mediaFolder.findUnique({
+      where: { id: folderId },
+      select: { id: true },
+    });
+    if (!folder) throw new BadRequestException('Media folder was not found');
   }
 }
 

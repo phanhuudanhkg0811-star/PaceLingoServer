@@ -71,6 +71,25 @@ published test.
 - Missing `directionMode` becomes `DEFAULT`.
 - Missing media and timeline data is allowed during Phase 6.
 
+## Part 1–2 import data versus candidate visibility
+
+`options[].contentHtml` remains required in the admin import for every Part.
+For Part 1 it stores the four spoken English descriptions; for Part 2 it stores
+the three spoken English responses. This private authoring data is needed for
+review after submission.
+
+During publish, PaceLingo removes Part 1–2 option text from the public candidate
+snapshot:
+
+- Part 1 candidate sees the photograph and labels `(A) (B) (C) (D)` only.
+- Part 2 candidate sees the question number and labels `(A) (B) (C)` only.
+- Spoken question/response text and transcript must not be visible or present in
+  the public payload while the attempt is in progress.
+- Part 3–4 keep printed question/option text but continue to hide transcript.
+
+Do not leave Part 1–2 option content empty in the import JSON. Redaction is a
+publish responsibility, not an AI conversion shortcut.
+
 ## Media placeholders produced from PDF
 
 When an external AI can faithfully reconstruct a passage with semantic HTML,

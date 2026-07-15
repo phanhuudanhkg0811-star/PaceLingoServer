@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EnvModule } from './shared/config/env.module';
@@ -11,6 +11,9 @@ import { MediaModule } from './routes/media/media.module';
 import { BigIntSerializationInterceptor } from './shared/interceptors/bigint-serialization.interceptor';
 import { DirectionsModule } from './routes/directions/directions.module';
 import { ImportsModule } from './routes/imports/imports.module';
+import { RateLimitGuard } from './shared/guards/rate-limit.guard';
+import { RequestLoggingInterceptor } from './shared/interceptors/request-logging.interceptor';
+import { FeedbackModule } from './routes/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -21,6 +24,7 @@ import { ImportsModule } from './routes/imports/imports.module';
     MediaModule,
     DirectionsModule,
     ImportsModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [
@@ -32,6 +36,14 @@ import { ImportsModule } from './routes/imports/imports.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: BigIntSerializationInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestLoggingInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
     },
   ],
 })

@@ -142,6 +142,8 @@ export function buildSnapshots(test: TestTree, defaults: DefaultDirection[]) {
       fullListeningAudio: mediaPayload(test.fullListeningAudio),
     },
     sections: test.sections.map((section) => {
+      const hideSpokenChoices =
+        section.part === 'PART_1' || section.part === 'PART_2';
       const direction =
         section.directionMode === 'NONE'
           ? null
@@ -183,12 +185,16 @@ export function buildSnapshots(test: TestTree, defaults: DefaultDirection[]) {
           questions: group.questions.map((question) => ({
             id: question.id,
             number: question.number,
-            promptHtml: question.promptHtml,
+            promptHtml: hideSpokenChoices
+              ? section.part === 'PART_1'
+                ? '<p>Question</p>'
+                : '<p>Choose the best response.</p>'
+              : question.promptHtml,
             order: question.order,
             options: question.options.map((option) => ({
               id: option.id,
               label: option.label,
-              contentHtml: option.contentHtml,
+              contentHtml: hideSpokenChoices ? '' : option.contentHtml,
               order: option.order,
             })),
           })),
@@ -244,6 +250,13 @@ export function buildSnapshots(test: TestTree, defaults: DefaultDirection[]) {
         transcriptHtml: group.transcriptHtml,
         questions: group.questions.map((question) => ({
           questionId: question.id,
+          promptHtml: question.promptHtml,
+          options: question.options.map((option) => ({
+            id: option.id,
+            label: option.label,
+            contentHtml: option.contentHtml,
+            order: option.order,
+          })),
           explanationHtml: question.explanationHtml,
           grammarTopic: question.grammarTopic,
           vocabularyTags: question.vocabularyTags,

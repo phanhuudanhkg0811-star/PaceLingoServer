@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
+import { R2StorageService } from '../media/r2-storage.service';
 import type {
   CreateTestDraftInput,
   TestContentInput,
@@ -58,7 +59,10 @@ const treeInclude = {
 
 @Injectable()
 export class TestDraftsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: R2StorageService,
+  ) {}
 
   list() {
     return this.prisma.test.findMany({
@@ -66,7 +70,7 @@ export class TestDraftsService {
       take: 100,
       include: {
         currentPublishedVersion: true,
-        _count: { select: { sections: true, versions: true } },
+        _count: { select: { sections: true, versions: true, attempts: true } },
       },
     });
   }
@@ -505,15 +509,62 @@ export class TestDraftsService {
   async remove(id: string) {
     const test = await this.prisma.test.findUnique({
       where: { id },
-      select: { status: true, _count: { select: { versions: true } } },
+      select: {
+        status: true,
+        _count: { select: { attempts: true } },
+        versions: {
+          select: {
+            candidatePayloadStorageKey: true,
+            answerKeyStorageKey: true,
+            reviewPayloadStorageKey: true,
+          },
+        },
+      },
     });
     if (!test) throw new NotFoundException('Test draft was not found');
-    if (test.status !== 'DRAFT' || test._count.versions > 0) {
+    if (test._count.attempts > 0) {
       throw new ConflictException(
-        'Published or versioned tests cannot be deleted',
+        'Tests with attempts cannot be deleted. Archive the test instead to preserve user history.',
       );
     }
     await this.prisma.test.delete({ where: { id } });
+
+    const snapshotKeys = test.versions.flatMap((version) =>
+      [
+        version.candidatePayloadStorageKey,
+        version.answerKeyStorageKey,
+        version.reviewPayloadStorageKey,
+      ].filter((key): key is string => Boolean(key)),
+    );
+    await Promise.all(
+      snapshotKeys.map((key) =>
+        this.storage.delete(key).catch(() => undefined),
+      ),
+    );
+  }
+
+  async archive(id: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!test) throw new NotFoundException('Test was not found');
+    if (test.status === 'ARCHIVED') return;
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.test.update({
+        where: { id },
+        data: {
+          status: 'ARCHIVED',
+          currentPublishedVersionId: null,
+          publishedAt: null,
+        },
+      });
+      await transaction.testVersion.updateMany({
+        where: { testId: id, status: 'PUBLISHED' },
+        data: { status: 'ARCHIVED' },
+      });
+    });
   }
 
   private async ensureEditable(id: string) {

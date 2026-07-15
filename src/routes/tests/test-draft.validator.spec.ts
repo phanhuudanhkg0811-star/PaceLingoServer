@@ -151,6 +151,29 @@ describe('validateTestDraft', () => {
       expect.arrayContaining([expect.objectContaining({ code: 'EMPTY_TEST' })]),
     );
   });
+
+  it('rejects missing Part 1 choice and question text spilled across fields', () => {
+    const draft = makeFullTest();
+    const partOneQuestion = draft.sections[0].questionGroups[0].questions[0];
+    partOneQuestion.options.pop();
+
+    const partThreeQuestion = draft.sections[2].questionGroups[0].questions[0];
+    partThreeQuestion.promptHtml =
+      '<p>44–46 44. Where does the woman work?</p>';
+    partThreeQuestion.options[3].contentHtml =
+      'At a real estate agency 45. What does the man want to dispose of?';
+
+    const result = validateTestDraft(draft);
+    const codes = result.errors.map((issue) => issue.code);
+
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'INVALID_OPTION_COUNT',
+        'NUMBER_PREFIX_IN_PROMPT',
+        'QUESTION_BLOCK_IN_OPTION',
+      ]),
+    );
+  });
 });
 
 function makeReadingQuestion(number: number) {

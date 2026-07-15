@@ -25,11 +25,15 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
 import {
+  type CreateMediaFolderInput,
+  createMediaFolderSchema,
   type MediaListQuery,
   mediaListQuerySchema,
   type MediaUploadInput,
   mediaUploadSchema,
   type UpdateMediaInput,
+  type UpdateMediaFolderInput,
+  updateMediaFolderSchema,
   updateMediaSchema,
 } from './media.schemas';
 import { MediaService } from './media.service';
@@ -58,6 +62,35 @@ export class MediaController {
     @Query(new ZodValidationPipe(mediaListQuerySchema)) query: MediaListQuery,
   ) {
     return this.media.list(query);
+  }
+
+  @Get('folders')
+  listFolders() {
+    return this.media.listFolders();
+  }
+
+  @Post('folders')
+  createFolder(
+    @Body(new ZodValidationPipe(createMediaFolderSchema))
+    input: CreateMediaFolderInput,
+    @Req() request: AdminRequest,
+  ) {
+    return this.media.createFolder(input, request.user.id);
+  }
+
+  @Patch('folders/:id')
+  updateFolder(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateMediaFolderSchema))
+    input: UpdateMediaFolderInput,
+  ) {
+    return this.media.updateFolder(id, input);
+  }
+
+  @Delete('folders/:id')
+  @HttpCode(204)
+  removeFolder(@Param('id') id: string) {
+    return this.media.removeFolder(id);
   }
 
   @Post()

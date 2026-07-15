@@ -1,16 +1,21 @@
 # AI prompt — TOEIC PDF to PaceLingo JSON
 
 Đưa tài liệu này, `IMPORT_SCHEMA_V1.md`,
-[`AI_PASSAGE_AND_MEDIA_GUIDE.md`](./AI_PASSAGE_AND_MEDIA_GUIDE.md), file PDF đề
-và answer key cho AI. Tài liệu passage/media là hợp đồng chi tiết bắt buộc cho
+[`AI_PASSAGE_AND_MEDIA_GUIDE.md`](./AI_PASSAGE_AND_MEDIA_GUIDE.md),
+[`AI_SOURCE_MERGE_PROTOCOL.md`](./AI_SOURCE_MERGE_PROTOCOL.md), file PDF đề,
+listening script, answer key và file lời giải cho AI. Tài liệu passage/media là
+hợp đồng chi tiết bắt buộc cho
 việc dựng email, table, passage HTML và đánh dấu ảnh cần admin chèn. Nên
-xử lý từng Part hoặc từng nhóm passage thay vì yêu cầu xuất cả 200 câu một lần.
+xử lý từng phạm vi nhỏ theo quy trình hai lượt trong source merge protocol,
+không yêu cầu xuất cả 200 câu một lần.
 
 ## Prompt sẵn để sao chép
 
 ```text
 You are converting a TOEIC Listening and Reading PDF into PaceLingo import
 JSON. Follow IMPORT_SCHEMA_V1.md exactly and return schemaVersion 1 JSON.
+Follow AI_SOURCE_MERGE_PROTOCOL.md when combining the question PDF, listening
+script, answer key, and explanation file. Treat them as separate sources.
 
 SCOPE
 - Convert only the Part/pages specified by me.
@@ -20,8 +25,22 @@ SCOPE
   available, transcripts, explanations, grammar topics, and vocabulary tags.
 - Use the supplied answer key for correctOption. Never infer or invent a
   correct answer when the answer key is missing or unreadable.
+- Match answers and explanations exclusively by printed question number. Never
+  merge sources by physical adjacency or paste unconsumed source text into the
+  last option/transcript.
 - Return one valid JSON object only. Do not wrap it in Markdown and do not add
   commentary before or after it.
+
+FIELD OWNERSHIP AND LANGUAGE FIREWALL
+- Question PDF owns English promptHtml, English options, passages and visuals.
+- Listening script owns English transcriptHtml and Part 1/2 spoken choices.
+- Answer key owns correctOption only.
+- Explanation file owns explanationHtml only.
+- promptHtml, options[].contentHtml, transcriptHtml and stimulus contentHtml
+  must contain English source content only.
+- Vietnamese is allowed only in explanationHtml.
+- Never copy Đáp án, Dịch nghĩa, Giải thích, STT, page headers, page numbers,
+  answer-key letters or neighboring question blocks into content fields.
 
 PART AND GROUP MAPPING
 - Part 1: PHOTO
@@ -33,6 +52,33 @@ PART AND GROUP MAPPING
 - Part 7 one document: SINGLE_PASSAGE
 - Part 7 two or three related documents: MULTIPLE_PASSAGE; keep every related
   document in the same questionGroup as separate ordered stimuli
+
+LISTENING FIELD RULES
+- Part 1 import data keeps four English spoken descriptions for private review,
+  but the live candidate UI displays only the photo and labels A/B/C/D. Use a
+  neutral promptHtml such as <p>Question</p>. Each group has one question and
+  one IMAGE placeholder. It MUST contain exactly four option objects with
+  labels A, B, C, D in that order; never reuse Part 2's three-option shape.
+- Part 2 import data keeps the spoken English question/responses for private
+  review, but the live candidate UI displays only labels A/B/C. Use a neutral
+  promptHtml such as <p>Question</p>. Each group has one question and three
+  English response options in the draft.
+- Part 3/4 transcriptHtml contains only the spoken English conversation/talk.
+  Printed questions and options belong to question objects, not transcriptHtml.
+- Never put translations or answer letters in transcriptHtml or options.
+- Never design candidate-facing Part 1/2 output that prints spoken option text.
+  PaceLingo redacts that text from the public candidate snapshot at publish.
+
+FIELD BOUNDARIES
+- promptHtml contains the stem only: no question number and no group range.
+- option contentHtml contains one option only: no repeated label and no next
+  question.
+- Finish one question object before consuming source text for the next.
+- If an option contains a pattern such as "45. What...", the batch is corrupt;
+  stop instead of returning JSON.
+- If the explanation source contains an explanation for a question, insert it
+  into that exact question's explanationHtml. explanationsFound must equal
+  explanationsInserted before output.
 
 HTML OR IMAGE DECISION
 For every photograph, passage, document, table, chart, form, advertisement,
@@ -103,6 +149,14 @@ VALIDATION BEFORE OUTPUT
 - Ensure question numbers match the PDF and are unique in the output scope.
 - Ensure correctOption matches an existing option label when an answer key was
   provided.
+- Ensure every requested question number occurs exactly once and every supplied
+  explanation is mapped to the same numbered question.
+- Ensure Part 1 labels are exactly A/B/C/D and Part 2 labels exactly A/B/C.
+- Ensure no prompt begins with a number/range and no option contains the next
+  numbered question.
+- Search promptHtml, options, transcripts and stimuli for Vietnamese, answer
+  labels, source headings and accidentally concatenated neighboring questions;
+  there must be none.
 - Ensure the final response parses as strict JSON: no comments, trailing
   commas, Markdown fences, or unescaped newlines inside strings.
 
@@ -112,14 +166,20 @@ Answer key location: <INSERT PAGE/FILE OR "NOT PROVIDED">.
 
 ## Quy trình đề xuất
 
-1. Part 1: chia theo từng cụm ảnh; AI đánh dấu toàn bộ ảnh bằng
+1. Trước mỗi batch, chạy lượt lập bảng đối chiếu theo
+   `AI_SOURCE_MERGE_PROTOCOL.md`; chỉ xuất JSON khi số câu/nguồn đã khớp.
+2. Part 1: chia theo từng cụm ảnh; AI đánh dấu toàn bộ ảnh bằng
    `[MEDIA_REQUIRED]`.
-2. Part 2–5: chia khoảng 20–30 câu mỗi lượt.
-3. Part 6: mỗi lượt vài passage, không tách bốn câu khỏi passage.
-4. Part 7: chia theo group; giữ double/triple passage trong cùng group.
-5. Import kết quả tại `/admin/imports`.
-6. Tìm `MEDIA_REQUIRED` trong normalized JSON để lập danh sách ảnh cần crop,
-   upload và gắn ở Phase 7.
+3. Part 2: chỉ 5–10 câu mỗi lượt; Part 3–4 chỉ 1–3 group mỗi lượt.
+4. Part 5: 10–20 câu mỗi lượt.
+5. Part 6: mỗi lượt 1–3 passage, không tách bốn câu khỏi passage.
+6. Part 7: mỗi lượt 1–3 group; giữ double/triple passage trong cùng group.
+7. Chạy `audit:import` trên từng fragment, rồi dùng `merge:imports` để ghép bằng
+   code thay vì nhờ AI viết lại toàn bộ JSON.
+8. Chạy `audit:import` lần nữa trên file đã ghép.
+9. Chỉ import kết quả sạch tại `/admin/imports`.
+10. Tìm `MEDIA_REQUIRED` trong normalized JSON để lập danh sách ảnh cần crop,
+    upload và gắn ở Phase 7.
 
 ## Ví dụ quyết định
 

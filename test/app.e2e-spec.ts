@@ -59,4 +59,8 @@ describe('AppController (e2e)', () => {
       .get('/practice-sessions/not-owned')
       .expect(401);
   });
+
+  it('/feedback (GET) requires admin authentication', () => {
+    return request(app.getHttpServer()).get('/feedback').expect(401);
+  });
 });

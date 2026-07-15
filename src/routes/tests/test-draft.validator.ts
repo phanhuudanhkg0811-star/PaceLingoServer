@@ -31,7 +31,13 @@ export interface DraftTree {
       }>;
       questions: Array<{
         number: number;
-        options: Array<{ isCorrect: boolean }>;
+        promptHtml?: string;
+        explanationHtml?: string | null;
+        options: Array<{
+          isCorrect: boolean;
+          label?: string;
+          contentHtml?: string;
+        }>;
       }>;
     }>;
   }>;
@@ -72,6 +78,13 @@ const expectedGroupTypes: Record<ToeicPart, GroupType[]> = {
   PART_6: ['TEXT_COMPLETION'],
   PART_7: ['SINGLE_PASSAGE', 'MULTIPLE_PASSAGE'],
 };
+
+const embeddedQuestion =
+  /(?:^|\s)\d{1,3}[.)]\s+(?:What|Where|When|Why|Who|How|Which|According|Does|Do|Is|Are|Will|Would|Has|Have|Look|Choose)\b/iu;
+const numberedPromptPrefix =
+  /^\s*(?:(?:\d{1,3}\s*[-–—]\s*\d{1,3})|(?:[-–—]\s*)?(?:\d{1,3}\s+){0,2}\d{1,3}[.)])\s+/u;
+const sourceNoise =
+  /(?:Đáp\s*án|Dịch\s*nghĩa|Giải\s*thích|\bSTT\b|ETS\s+\d{4}\s+(?:LISTENING|READING)\s+TEST)/iu;
 
 export function validateTestDraft(test: DraftTree): DraftValidationResult {
   const errors: DraftValidationIssue[] = [];
@@ -196,6 +209,7 @@ export function validateTestDraft(test: DraftTree): DraftValidationResult {
             'Question must have exactly one correct option.',
           );
         }
+        validateQuestionContent(section.part, question, questionPath, errors);
       }
     }
     questionsByPart[section.part] =
@@ -239,6 +253,71 @@ export function validateTestDraft(test: DraftTree): DraftValidationResult {
     warnings,
     stats: { totalQuestions, questionsByPart },
   };
+}
+
+function validateQuestionContent(
+  part: ToeicPart,
+  question: DraftTree['sections'][number]['questionGroups'][number]['questions'][number],
+  path: string,
+  errors: DraftValidationIssue[],
+) {
+  const prompt = stripHtml(question.promptHtml ?? '');
+  if (prompt && numberedPromptPrefix.test(prompt)) {
+    add(
+      errors,
+      'NUMBER_PREFIX_IN_PROMPT',
+      `${path}.promptHtml`,
+      'Question prompt must not contain its number or group range.',
+    );
+  }
+  if (sourceNoise.test(question.promptHtml ?? '')) {
+    add(
+      errors,
+      'SOURCE_NOISE_IN_PROMPT',
+      `${path}.promptHtml`,
+      'Question prompt contains answer-key labels or PDF source headers.',
+    );
+  }
+
+  const expectedLabels =
+    part === 'PART_2' ? ['A', 'B', 'C'] : ['A', 'B', 'C', 'D'];
+  const labels = question.options.map((option) => option.label).filter(Boolean);
+  if (labels.length && labels.join(',') !== expectedLabels.join(',')) {
+    add(
+      errors,
+      'INVALID_OPTION_LABELS',
+      `${path}.options`,
+      `${part} requires labels ${expectedLabels.join(', ')} exactly once and in order.`,
+    );
+  }
+
+  question.options.forEach((option, optionIndex) => {
+    const content = option.contentHtml ?? '';
+    if (embeddedQuestion.test(stripHtml(content))) {
+      add(
+        errors,
+        'QUESTION_BLOCK_IN_OPTION',
+        `${path}.options.${optionIndex}.contentHtml`,
+        'Option contains the start of another numbered question.',
+      );
+    }
+    if (sourceNoise.test(content)) {
+      add(
+        errors,
+        'SOURCE_NOISE_IN_OPTION',
+        `${path}.options.${optionIndex}.contentHtml`,
+        'Option contains answer-key labels or PDF source headers.',
+      );
+    }
+  });
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function validateFullTest(

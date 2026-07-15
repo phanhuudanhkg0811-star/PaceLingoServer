@@ -2,6 +2,7 @@
 import { ConflictException } from '@nestjs/common';
 import { TestDraftsService } from './test-drafts.service';
 import type { PrismaService } from '../../shared/database/prisma.service';
+import type { R2StorageService } from '../media/r2-storage.service';
 import type { CreateTestDraftInput } from './test-draft.schemas';
 
 describe('TestDraftsService', () => {
@@ -12,10 +13,15 @@ describe('TestDraftsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    testVersion: { updateMany: jest.fn() },
     testSection: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
   };
-  const service = new TestDraftsService(prisma as unknown as PrismaService);
+  const storage = { delete: jest.fn() };
+  const service = new TestDraftsService(
+    prisma as unknown as PrismaService,
+    storage as unknown as R2StorageService,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -63,16 +69,61 @@ describe('TestDraftsService', () => {
     );
   });
 
-  it('does not delete a published or versioned test', async () => {
+  it('does not delete a test that already has attempts', async () => {
     prisma.test.findUnique.mockResolvedValue({
       status: 'PUBLISHED',
-      _count: { versions: 1 },
+      _count: { attempts: 1 },
+      versions: [],
     });
 
     await expect(service.remove('test-1')).rejects.toBeInstanceOf(
       ConflictException,
     );
     expect(prisma.test.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes an unattempted published test and cleans its snapshots', async () => {
+    prisma.test.findUnique.mockResolvedValue({
+      status: 'PUBLISHED',
+      _count: { attempts: 0 },
+      versions: [
+        {
+          candidatePayloadStorageKey: 'tests/test-1/v1/candidate.json',
+          answerKeyStorageKey: 'tests/test-1/v1/answer-key.enc',
+          reviewPayloadStorageKey: 'tests/test-1/v1/review.enc',
+        },
+      ],
+    });
+    prisma.test.delete.mockResolvedValue({ id: 'test-1' });
+    storage.delete.mockResolvedValue(undefined);
+
+    await service.remove('test-1');
+
+    expect(prisma.test.delete).toHaveBeenCalledWith({
+      where: { id: 'test-1' },
+    });
+    expect(storage.delete).toHaveBeenCalledTimes(3);
+  });
+
+  it('archives a published test and its current versions', async () => {
+    prisma.test.findUnique.mockResolvedValue({ status: 'PUBLISHED' });
+    prisma.test.update.mockResolvedValue({ id: 'test-1' });
+    prisma.testVersion.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.archive('test-1');
+
+    expect(prisma.test.update).toHaveBeenCalledWith({
+      where: { id: 'test-1' },
+      data: {
+        status: 'ARCHIVED',
+        currentPublishedVersionId: null,
+        publishedAt: null,
+      },
+    });
+    expect(prisma.testVersion.updateMany).toHaveBeenCalledWith({
+      where: { testId: 'test-1', status: 'PUBLISHED' },
+      data: { status: 'ARCHIVED' },
+    });
   });
 });
 

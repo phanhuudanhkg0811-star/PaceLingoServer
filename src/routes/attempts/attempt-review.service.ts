@@ -60,6 +60,8 @@ interface ReviewSnapshot {
     transcriptHtml: string | null;
     questions: Array<{
       questionId: string;
+      promptHtml?: string;
+      options?: unknown[];
       explanationHtml: string | null;
       grammarTopic: string | null;
       vocabularyTags: string[];
@@ -246,6 +248,8 @@ export class AttemptReviewService {
                 correctByQuestion.get(question.id) ?? null;
               return {
                 ...question,
+                promptHtml: privateQuestion?.promptHtml ?? question.promptHtml,
+                options: privateQuestion?.options ?? question.options,
                 correctOptionId,
                 selectedOptionId: userAnswer?.selectedOptionId ?? null,
                 isCorrect:
